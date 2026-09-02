@@ -1,9 +1,8 @@
 # pi-cursor
 
-Stopped private proof of concept: Cursor as a plain inference provider over
-`aiserver.v1.InferenceService/RunInference`. The source is retained for research only. The public
-`pi-cursor-inference@0.0.0` package remains a blank name reservation and must not be replaced by a
-functional release.
+Private proof of concept, resumed 2026-09-02: Cursor as a plain inference provider over
+`aiserver.v1.InferenceService/RunInference`. The public `pi-cursor-inference@0.0.0` package remains
+a blank name reservation; release automation stays disabled pending an explicit operator decision.
 
 Read [`docs/plan.md`](docs/plan.md) and [`docs/decisions.md`](docs/decisions.md) before changing
 anything. Decisions outrank the current source shape; record a new decision in the same change

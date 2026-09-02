@@ -1,8 +1,8 @@
 # pi-cursor decisions
 
-> **Status:** Stopped on 2026-09-02. The repository remains private, the unreleased implementation
-> is retained as research, and the public `0.0.0` package remains a blank name reservation. No
-> functional release is planned.
+> **Status:** Resumed 2026-09-02 for provider and auth work. The repository remains private and
+> release automation stays disabled; the public `0.0.0` package remains a blank name reservation
+> until the operator explicitly re-enables releases.
 
 - 2026-09-02 Public package `pi-cursor-inference` on npm (unscoped, MIT; GitHub repository stays `pi-cursor`) is a clean proof of concept of Cursor as a plain inference provider over `aiserver.v1.InferenceService/RunInference`. It is not a port of the private `@victor-software-house/pi-cursor` extension's operator features.
 - 2026-09-02 Scope is a working provider plus login. The usage dashboard is out; it is larger than the provider and not yet fully tested.
@@ -21,3 +21,4 @@
 - 2026-09-02 Catalog schema is separately pinned to `cursor-agent 2026.09.02-fa0c06e` and reduced to ten messages for exactly `AvailableModels`, `GetUsableModels`, and `GetDefaultModelForCli`. These captured Connect unary calls use `node:https`; they do not share the managed-inference HTTP/2 run.
 - 2026-09-02 Dynamic catalog refresh is fail-closed. A failed network refresh clears persisted and in-memory Cursor models before surfacing the error; it never retains a stale selectable model list.
 - 2026-09-02 Operator stopped the project before a functional release. Keep the repository private, preserve the implementation as unreleased research, leave `pi-cursor-inference@0.0.0` as the blank npm reservation, and disable release automation.
+- 2026-09-02 Operator resumed development the same day. The login challenge derivation was corrected to `base64url(sha256(verifier-string))`: the captured 2026-08-25 poll exchange reproduces the server challenge exactly from the verifier string, and the extracted CLI, IDE agent-host, and SDK auth clients all agree. Hashing the raw 32 verifier bytes (the previously committed form) produces a challenge the server never accepts, so polling stays 404 until timeout. Release automation remains disabled pending an explicit operator decision.

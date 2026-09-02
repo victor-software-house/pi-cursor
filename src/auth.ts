@@ -48,7 +48,10 @@ export function createCursorAuthRequest(
 	const verifierBytes = deps.randomBytes(32);
 	if (verifierBytes.byteLength !== 32) throw new Error('Cursor login verifier must be 32 bytes');
 	const verifier = base64Url(verifierBytes);
-	const challenge = base64Url(createHash('sha256').update(verifierBytes).digest());
+	// Proven against the captured 2026-08-25 login and the extracted CLI/IDE/SDK auth clients:
+	// the challenge hashes the base64url verifier STRING, never the raw bytes. Hashing raw
+	// bytes yields a challenge the server never accepts and the poll stays 404 until timeout.
+	const challenge = base64Url(createHash('sha256').update(verifier, 'utf8').digest());
 	const uuid = deps.randomUuid();
 	const params = new URLSearchParams({ challenge, uuid, mode: 'login', redirectTarget: 'cli' });
 	return { verifier, challenge, uuid, url: `${loginUrl}?${params.toString()}` };
