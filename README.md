@@ -1,4 +1,4 @@
-# pi-cursor
+# pi-cursor-inference
 
 Cursor as a plain inference provider for Pi, over `aiserver.v1.InferenceService/RunInference`.
 

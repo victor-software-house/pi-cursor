@@ -4,13 +4,13 @@ Decisions that shaped this plan: [`decisions.md`](decisions.md).
 
 ## Outcome
 
-`pi install npm:pi-cursor` gives a Pi user a `cursor` provider that logs in with `/login cursor`,
+`pi install npm:pi-cursor-inference` gives a Pi user a `cursor` provider that logs in with `/login cursor`,
 lists the account's Cursor models, and streams thinking, text, usage, and incremental tool-call
 arguments through `aiserver.v1.InferenceService/RunInference`. Pi owns every tool: it sends its
 complete context and active tool schemas, executes calls through its ordinary loop, and continues
 on the same routed run. No agent bridge, no Cursor-owned tools, no hidden checkpoint state.
 
-Done when an exact published `pi-cursor@0.0.1` is installed from npm into a clean Pi 0.84.4
+Done when an exact published `pi-cursor-inference@0.0.1` is installed from npm into a clean Pi 0.84.4
 (Node CLI and official standalone Bun binary), logs in through the browser flow, refreshes an
 expiring token, and completes a streamed arbitrary-tool round trip on Composer 2.5 plus one row
 from each other model family the account exposes.
@@ -154,7 +154,7 @@ Each slice ends committed, pushed, and green on `mise run verify`.
 - Flip the repository to public before `0.0.1` publishes; README states provenance, the IDE
   identity derivation, the unverified-server-policy caveat for derived identities, the third-party
   client risk under Cursor's terms, and the exact evidence classes.
-- Installed proof: `pi install npm:pi-cursor@0.0.1` into a clean agent dir, Node and standalone Bun,
+- Installed proof: `pi install npm:pi-cursor-inference@0.0.1` into a clean agent dir, Node and standalone Bun,
   `/login cursor`, and the Composer round trip. Record the evidence in the release notes.
 
 ## Risks and stop conditions

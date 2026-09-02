@@ -1,0 +1,19 @@
+{
+	"name": "pi-cursor-inference",
+	"version": "0.0.0",
+	"description": "Cursor as a plain inference provider for Pi, over aiserver.v1.InferenceService/RunInference. Placeholder release; the provider is under development.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/victor-software-house/pi-cursor.git"
+	},
+	"homepage": "https://github.com/victor-software-house/pi-cursor#readme",
+	"bugs": "https://github.com/victor-software-house/pi-cursor/issues",
+	"keywords": ["pi", "pi-package", "cursor", "provider", "inference"],
+	"files": ["README.md", "LICENSE"],
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org",
+		"access": "public"
+	}
+}
