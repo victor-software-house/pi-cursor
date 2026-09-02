@@ -326,6 +326,10 @@ describe('managed inference transport', () => {
 	test('cancels one invocation without cancelling its sibling', async () => {
 		let stream: ServerHttp2Stream | undefined;
 		const messages: string[] = [];
+		let resolveCancelObserved: () => void = () => undefined;
+		const cancelObserved = new Promise<void>((resolve) => {
+			resolveCancelObserved = resolve;
+		});
 		const target = await loopback((message, current) => {
 			stream = current;
 			messages.push(message.message.case ?? '<unset>');
@@ -345,6 +349,7 @@ describe('managed inference transport', () => {
 				);
 			}
 			if (message.message.case === 'cancelInvocation') {
+				resolveCancelObserved();
 				send(current, invocationEnd(message.message.value.invocationId));
 			}
 			if (message.message.case === 'finishRun') {
@@ -368,6 +373,7 @@ describe('managed inference transport', () => {
 		send(stream, textResponse('sibling', 'ok'));
 		send(stream, invocationEnd('sibling'));
 		expect((await sibling).invocationId).toBe('sibling');
+		await cancelObserved;
 		expect(messages).toContain('cancelInvocation');
 		expect(messages).toContain('runRequest');
 		await managed.shutdown();
