@@ -37,10 +37,12 @@ depends = ["gen", "lint:biome", "lint:oxlint", "lint:actions"]
 
 [tasks."lint:biome"]
 hide = true
+depends = ["gen"]
 run = "biome check ."
 
 [tasks."lint:oxlint"]
 hide = true
+depends = ["gen"]
 run = "bun --bun oxlint"
 
 [tasks."lint:actions"]
@@ -49,6 +51,7 @@ run = "actionlint"
 
 [tasks."lint:fix"]
 description = "Autofix lint: biome --write then oxlint --fix"
+depends = ["gen"]
 run = ["biome check --write .", "bun --bun oxlint --fix"]
 
 [tasks.format]
@@ -73,6 +76,7 @@ run = "bun test test/unit"
 
 [tasks."test:live"]
 description = "Live tests against Cursor (local-only, uses the account's quota)"
+depends = ["gen"]
 run = "bun test test/live"
 
 # ── Build / dev ──
@@ -93,6 +97,7 @@ run = "tsdown"
 
 [tasks.dev]
 description = "Start isolated Pi with the extension loaded from source"
+depends = ["gen"]
 interactive = true
 run = "bun scripts/dev.ts"
 
