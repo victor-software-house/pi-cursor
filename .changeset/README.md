@@ -1,12 +1,5 @@
 # Changesets
 
-Create a changeset for every user-visible change:
-
-```bash
-bunx changeset
-```
-
-CI owns `changeset version`. CI publish is `mise run release:oidc` then
-`bun publish --access public --tolerate-republish`. Do not run either locally.
-
-`pi-cursor-inference@0.0.0` is on npm. The first changeset is the only bump to `0.0.1`.
+Create one patch changeset for each user-visible change. CI owns versioning, publishing, tags, and
+GitHub Releases. `pi-cursor-inference@0.0.0` is the name-reservation bootstrap; the first functional
+release is `0.0.1`.

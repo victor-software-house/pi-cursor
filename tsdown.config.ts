@@ -26,7 +26,6 @@ export default defineConfig({
 	suppressWarnings: [
 		'TypeScript 7.0 does not yet have a stable API and is experimental. Some options will be unavailable.',
 	],
-	unused: { ignore: { peerDependencies: piPeers } },
 	deps: {
 		neverBundle: piPeers,
 		onlyBundle: [],
