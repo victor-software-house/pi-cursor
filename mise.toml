@@ -5,6 +5,7 @@ node = "26.8.1"
 bun = "1.4.0"
 lefthook = "2.1.12"
 actionlint = "1.7.12"
+buf = "1.72.0"
 
 [settings]
 experimental = true
@@ -32,7 +33,7 @@ run = "echo 'verify passed'"
 
 [tasks.lint]
 description = "Lint: biome + oxlint in parallel"
-depends = ["lint:biome", "lint:oxlint", "lint:actions"]
+depends = ["gen", "lint:biome", "lint:oxlint", "lint:actions"]
 
 [tasks."lint:biome"]
 hide = true
@@ -56,6 +57,7 @@ run = "biome format --write ."
 
 [tasks.typecheck]
 description = "TypeScript typecheck (no emit)"
+depends = ["gen"]
 run = "tsc --noEmit -p tsconfig.json"
 
 # ── Tests: directory-based profiles ──
@@ -66,6 +68,7 @@ run = "bun test"
 
 [tasks."test:unit"]
 description = "Unit tests only (mocked, CI-safe)"
+depends = ["gen"]
 run = "bun test test/unit"
 
 [tasks."test:live"]
@@ -74,8 +77,16 @@ run = "bun test test/live"
 
 # ── Build / dev ──
 
+[tasks.gen]
+description = "Generate the selected RunInference protobuf closure"
+sources = ["proto/**/*.proto", "buf.gen.yaml", "buf.yaml"]
+outputs = ["src/gen/aiserver/v1/inference_pb.ts"]
+env = { NODE_OPTIONS = "--disable-warning=ExperimentalWarning" }
+run = "buf generate"
+
 [tasks.build]
 description = "Build the single minified extension bundle with tsdown"
+depends = ["gen"]
 sources = ["src/**/*.ts", "tsdown.config.ts", "package.json"]
 outputs = ["dist/index.mjs", "dist/index.d.mts"]
 run = "tsdown"

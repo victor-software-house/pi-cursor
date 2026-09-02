@@ -12,8 +12,8 @@ that acts on it.
 
 - One implementation artifact: minified `dist/index.mjs`, no source map, plus the minimal
   declaration for the extension entry. `files` is a whitelist; `pack:verify` enforces it.
-- Private `@victor-software-house/*` packages may be build-time dependencies and are bundled. Never
-  publish, re-export, or document them as part of the public surface.
+- No private package may be a source, build, or runtime dependency. Bundle the selected public
+  implementation dependencies; never re-export them.
 - Machine identity is derived from the host with Cursor's algorithm (see decisions). Never read an
   installed IDE, never invent ids silently; the UUID fallback is persisted and reported.
 - Credentials go through Pi's OAuth provider contract. No custom stores.
@@ -24,3 +24,6 @@ that acts on it.
 - Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks, CI, and publish.
 - Conventional Commits; commit and push each green slice; no AI attribution anywhere.
 - Never `changeset version` or publish from a terminal after the `0.0.0` bootstrap.
+- Port only provider registration, OAuth login/refresh, host identity, catalog preflight,
+  RunInference request/transport/stream mapping, and narrow tests. Do not carry commands, usage UI,
+  database/account abstractions, keychain/1Password support, extraction machinery, or broad protos.

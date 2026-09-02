@@ -1,0 +1,18 @@
+version: v2
+
+inputs:
+  - directory: proto
+    types:
+      - aiserver.v1.RunInferenceClientMessage
+      - aiserver.v1.RunInferenceServerMessage
+
+managed:
+  enabled: false
+
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt:
+      - target=ts
+      - import_extension=none
+      - erasable_syntax=true

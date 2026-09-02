@@ -52,8 +52,9 @@ src/
   image.ts              image part validation
   gen/                  @bufbuild/protobuf classes generated from proto/ (bundled, gitignored)
 proto/
-  aiserver/v1/inference.proto        reconstructed from 3.18.9 metadata
-  agent/v1/*.proto, aiserver/v1/*    catalog request/response closure only
+  aiserver/v1/inference.proto        exact reconstructed 3.18.9 schema
+  catalog/*.proto                    only the three RPC request/response closure; added with catalog
+docs/protocol/inference-service-3.18.9/
   artifact-lock.json                 version, commit, URL, DMG sha256, module ids
 docs/
   plan.md, decisions.md, protocol.md (wire contract summary + provenance)
@@ -64,9 +65,9 @@ test/
   fixtures/ tool-roundtrip.json (synthetic, secret-free)
 ```
 
-Runtime dependencies: `@bufbuild/protobuf`, `zod`, `ts-pattern`. Peers: `@earendil-works/pi-ai`,
-`pi-coding-agent`, `pi-tui` at `0.84.4`. `@victor-software-house/pi-type-kit` is a bundled
-dev dependency (private registry; see decisions).
+Bundled public implementation dependencies: `@bufbuild/protobuf` and, only where schema validation
+requires it, `zod`. Peers: `@earendil-works/pi-ai`, `pi-coding-agent`, `pi-tui` at `0.84.4`.
+There are no private package dependencies.
 
 ## Slices
 
@@ -83,9 +84,10 @@ Each slice ends committed, pushed, and green on `mise run verify`.
 
 ### 1. Protocol and identity
 
-- Copy `inference.proto`, catalog protos, and `artifact-lock.json`; `buf.gen.yaml` generating only the
-  RunInference closure and the three catalog RPC closures into `src/gen/` (`erasable_syntax`, no `.js`
-  import extension).
+- Copy only `inference.proto` and `artifact-lock.json`; `buf.gen.yaml` generates only the
+  transitive `RunInferenceClientMessage` / `RunInferenceServerMessage` closure into `src/gen/`
+  (`erasable_syntax`, no `.js` import extension). Add the catalog closure later with the catalog
+  implementation, not speculatively here.
 - `identity.ts`: platform command table exactly as Cursor's `J6`, hardware-id normalisation exactly as
   `H9e`, MAC selection exactly as `B9e`/`W9e`, SHA-256 hex; random-UUID fallback persisted under
   `getAgentDir()/pi-cursor/identity.json` only when derivation fails.
@@ -97,8 +99,9 @@ Each slice ends committed, pushed, and green on `mise run verify`.
 
 ### 2. Transport, request, stream
 
-- Port `inference-transport.ts`, `inference-request.ts`, `inference-stream.ts`, `stream.ts`, `image.ts`
-  with `pi-type-kit` helpers kept as bundled imports.
+- Selectively port `inference-transport.ts`, `inference-request.ts`, `inference-stream.ts`,
+  `stream.ts`, and `image.ts`. Replace private helper imports with small local code at the owning
+  boundary; do not copy unrelated abstractions.
 - Verify: the private repository's transport matrix against a real local Node HTTP/2 server
   (handshake, one `runReady`, interleaved and reverse completion, unknown/duplicate/late ids,
   cancellation leaving siblings live, `finishRun` on routing change, heartbeats, compression, trailer,

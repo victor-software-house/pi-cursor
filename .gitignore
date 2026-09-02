@@ -12,3 +12,4 @@ mise.local.toml
 mise.*.local.toml
 .pi/
 *.tsbuildinfo
+src/gen/
