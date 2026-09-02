@@ -77,8 +77,8 @@ Each slice ends committed, pushed, and green on `mise run verify`.
 - Repository, mani registration, `docs/plan.md`, `docs/decisions.md`, `AGENTS.md`, `CLAUDE.md`.
 - VSH scaffold baseline (`pi-extension-scaffold`) adapted for public npm: `publishConfig.access: public`,
   no GitHub Packages publish, Changesets + OIDC trusted publishing per `greenfield-release`.
-- `tsdown`: single entry, `minify: true`, `sourcemap: false`, `dts: false`, `clean`, Pi peers in
-  `deps.neverBundle`; `files: ["dist", "README.md", "CHANGELOG.md", "LICENSE"]`.
+- `tsdown`: single entry, `minify: true`, `sourcemap: false`, entry-only declarations, `clean`,
+  Pi peers in `deps.neverBundle`; `files: ["dist", "README.md", "CHANGELOG.md", "LICENSE"]`.
 - Verify: `mise run verify` passes on an empty extension that registers nothing.
 
 ### 1. Protocol and identity

@@ -10,8 +10,8 @@ that acts on it.
 
 ## Rules
 
-- One published artifact: minified `dist/index.mjs`, no source map, no declarations beyond the
-  extension entry. `files` is a whitelist; `pack:verify` enforces it.
+- One implementation artifact: minified `dist/index.mjs`, no source map, plus the minimal
+  declaration for the extension entry. `files` is a whitelist; `pack:verify` enforces it.
 - Private `@victor-software-house/*` packages may be build-time dependencies and are bundled. Never
   publish, re-export, or document them as part of the public surface.
 - Machine identity is derived from the host with Cursor's algorithm (see decisions). Never read an

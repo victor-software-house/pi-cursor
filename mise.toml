@@ -1,0 +1,116 @@
+min_version = "2026.7.7"
+
+[tools]
+node = "26.8.1"
+bun = "1.4.0"
+lefthook = "2.1.12"
+actionlint = "1.7.12"
+
+[settings]
+experimental = true
+lockfile = true
+env_cache = true
+env_cache_ttl = "4h"
+fetch_remote_versions_cache = "12h"
+
+[env]
+_.path = { path = ["{{config_root}}/node_modules/.bin"], tools = true }
+
+[deps.bun]
+auto = true
+run = "bun install --frozen-lockfile"
+
+[hooks]
+postinstall = "lefthook install"
+
+# ── Gates ──
+
+[tasks.verify]
+description = "Full CI-safe verification gate: lint + typecheck + unit tests + build + pack:verify"
+depends = ["lint", "typecheck", "test:unit", "pack:verify", "publint"]
+run = "echo 'verify passed'"
+
+[tasks.lint]
+description = "Lint: biome + oxlint in parallel"
+depends = ["lint:biome", "lint:oxlint", "lint:actions"]
+
+[tasks."lint:biome"]
+hide = true
+run = "biome check ."
+
+[tasks."lint:oxlint"]
+hide = true
+run = "bun --bun oxlint"
+
+[tasks."lint:actions"]
+hide = true
+run = "actionlint"
+
+[tasks."lint:fix"]
+description = "Autofix lint: biome --write then oxlint --fix"
+run = ["biome check --write .", "bun --bun oxlint --fix"]
+
+[tasks.format]
+description = "Format with biome"
+run = "biome format --write ."
+
+[tasks.typecheck]
+description = "TypeScript typecheck (no emit)"
+run = "tsc --noEmit -p tsconfig.json"
+
+# ── Tests: directory-based profiles ──
+
+[tasks.test]
+description = "All tests: unit + live (live skips without credentials or in CI)"
+run = "bun test"
+
+[tasks."test:unit"]
+description = "Unit tests only (mocked, CI-safe)"
+run = "bun test test/unit"
+
+[tasks."test:live"]
+description = "Live tests against Cursor (local-only, uses the account's quota)"
+run = "bun test test/live"
+
+# ── Build / dev ──
+
+[tasks.build]
+description = "Build the single minified extension bundle with tsdown"
+sources = ["src/**/*.ts", "tsdown.config.ts", "package.json"]
+outputs = ["dist/index.mjs", "dist/index.d.mts"]
+run = "tsdown"
+
+[tasks.dev]
+description = "Start isolated Pi with the extension loaded from source"
+interactive = true
+run = "bun scripts/dev.ts"
+
+# ── Package ──
+
+[tasks.pack]
+description = "Dry-run package contents"
+run = "bun pm pack --dry-run"
+
+[tasks."pack:verify"]
+description = "Pack and enforce the published-artifact whitelist (no maps, no sources, no private paths)"
+depends = ["build"]
+run = "bun scripts/pack-verify.ts"
+
+[tasks.publint]
+description = "Validate package.json publishing fields"
+depends = ["build"]
+run = "publint"
+
+# ── Release (CI owns version, publish, tags) ──
+
+[tasks."changeset:status"]
+description = "Check pending changesets against main"
+run = "changeset status --since=origin/main"
+
+[tasks.version]
+description = "Generate Changesets version PR changes"
+run = ["changeset version", "bun update --lockfile-only"]
+
+[tasks."lockfile:sync"]
+description = "Verify bun.lock matches package.json"
+run = "bun install --frozen-lockfile --dry-run"
