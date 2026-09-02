@@ -66,25 +66,39 @@ describe('Cursor OAuth', () => {
 		});
 	});
 
-	test('exchanges a configured machine API key as bearer', async () => {
-		let authorization: string | null = null;
-		const env = { PI_CURSOR_API_KEY: 'machine-key' };
+	test('refreshes via the workbench oauth grant and keeps the durable refresh token', async () => {
+		const requests: Array<{ url: string; body: unknown }> = [];
 		const refreshed = await refreshCursorToken(
 			{ type: 'oauth', access: token(), refresh: 'refresh-token', expires: 0 },
 			new AbortController().signal,
-			async (_input, init) => {
+			async (input, init) => {
 				if (init === undefined) throw new Error('refresh request options are missing');
-				authorization = new Headers(init.headers).get('authorization');
-				expect(init.body).toBe('{}');
-				return Response.json({ accessToken: token(expirySeconds + 1), refreshToken: 'next' });
+				if (typeof init.body !== 'string') throw new Error('refresh request body is not a string');
+				if (typeof input !== 'string') throw new Error('refresh request url is not a string');
+				requests.push({ url: input, body: JSON.parse(init.body) });
+				return Response.json({
+					access_token: token(expirySeconds + 1),
+					id_token: 'id',
+					shouldLogout: false,
+				});
 			},
-			env,
 		);
-		expect(String(authorization)).toBe('Bearer machine-key');
-		expect(refreshed.refresh).toBe('next');
+		expect(requests).toEqual([
+			{
+				url: 'https://api2.cursor.sh/oauth/token',
+				body: {
+					grant_type: 'refresh_token',
+					client_id: 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB',
+					refresh_token: 'refresh-token',
+				},
+			},
+		]);
+		expect(refreshed.access).toBe(token(expirySeconds + 1));
+		expect(refreshed.refresh).toBe('refresh-token');
+		expect(refreshed.expires).toBe((expirySeconds + 1) * 1_000 - 5 * 60 * 1_000);
 	});
 
-	test('refuses to refresh a browser login instead of sending a rejected JWT', async () => {
+	test('treats a shouldLogout refresh response as a re-login error', async () => {
 		let called = false;
 		let failure: unknown;
 		try {
@@ -93,17 +107,15 @@ describe('Cursor OAuth', () => {
 				new AbortController().signal,
 				async () => {
 					called = true;
-					return Response.json({ accessToken: token(), refreshToken: 'next' });
+					return Response.json({ shouldLogout: true, error: 'sign-in-policy' });
 				},
-				{},
 			);
 		} catch (error) {
 			failure = error;
 		}
-		expect(called).toBe(false);
+		expect(called).toBe(true);
 		expect(failure).toBeInstanceOf(Error);
 		if (!(failure instanceof Error)) throw new Error('expected an Error');
 		expect(failure.message).toContain('/login cursor');
-		expect(failure.message).toContain('PI_CURSOR_API_KEY');
 	});
 });

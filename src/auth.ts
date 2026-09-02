@@ -5,8 +5,8 @@ import { isRecord } from '@victor-software-house/pi-type-kit';
 
 const loginUrl = 'https://cursor.com/loginDeepControl';
 const pollUrl = 'https://api2.cursor.sh/auth/poll';
-const refreshUrl = 'https://api2.cursor.sh/auth/exchange_user_api_key';
-const apiKeyEnvironmentVariable = 'PI_CURSOR_API_KEY';
+const refreshUrl = 'https://api2.cursor.sh/oauth/token';
+const refreshClientId = 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB';
 const maxPollAttempts = 150;
 const maxConsecutiveErrors = 3;
 const basePollDelayMs = 1_000;
@@ -71,6 +71,17 @@ function tokens(value: unknown): { readonly accessToken: string; readonly refres
 	return { accessToken: value['accessToken'], refreshToken: value['refreshToken'] };
 }
 
+function accessToken(value: unknown): string {
+	if (
+		!isRecord(value) ||
+		typeof value['access_token'] !== 'string' ||
+		value['access_token'] === ''
+	) {
+		throw new Error('Cursor refresh response is missing an access token');
+	}
+	return value['access_token'];
+}
+
 export function cursorTokenExpiry(token: string): number {
 	const payload = token.split('.')[1];
 	if (payload === undefined || payload === '') throw new Error('Cursor access token is not a JWT');
@@ -130,44 +141,45 @@ export async function pollCursorAuth(
 }
 
 /**
- * Refresh per the measured CLI contract, not the oh-my-pi prior art.
- *
- * `exchange_user_api_key` bearers a Cursor **User API Key** — the CLI's separate
- * `cursor-api-key` keychain credential. Measured 2026-09-02: both login JWTs are
- * rejected there with 401 `Invalid User API Key`, and the CLI's browser login never
- * writes an API key, so a browser login never refreshes at all; it rides the 60-day
- * access token and re-logins at expiry. This refresh therefore exchanges the
- * `PI_CURSOR_API_KEY` machine key when configured and otherwise fails with re-login
- * guidance, which Pi surfaces as an OAuth auth error while preserving the stored
- * credential.
+ * Refresh per the measured IDE workbench contract — the only client that refreshes
+ * a browser login. Extracted from the pinned 3.18.9 workbench and measured live
+ * 2026-09-02: `POST /oauth/token` with an OAuth2 refresh-token grant consumes the
+ * PKCE login's refresh JWT and returns a fresh 60-day access JWT. The refresh JWT
+ * is durable and non-rotating (the response carries no `refresh_token`; repeated
+ * grants with the same token each returned 200). `exchange_user_api_key` is a
+ * different endpoint that bearers a User API Key and rejects both login JWTs with
+ * 401 — the CLI, agent-host, and SDK never refresh a browser login at all.
+ * `shouldLogout: true` means the server revoked the session (e.g. MDM sign-in
+ * policy); treat it as a re-login error while Pi preserves the stored credential.
  */
 export async function refreshCursorToken(
-	_credential: OAuthCredential,
+	credential: OAuthCredential,
 	signal: AbortSignal,
 	request: CursorFetch = fetch,
-	env: Readonly<Record<string, string | undefined>> = process.env,
 ): Promise<OAuthCredential> {
-	const apiKey = env[apiKeyEnvironmentVariable]?.trim();
-	if (apiKey === undefined || apiKey === '') {
-		throw new Error(
-			`Cursor browser sign-ins cannot refresh programmatically; sign in again with /login cursor or set $${apiKeyEnvironmentVariable}`,
-		);
-	}
 	const response = await request(refreshUrl, {
 		method: 'POST',
-		headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-		body: '{}',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			grant_type: 'refresh_token',
+			client_id: refreshClientId,
+			refresh_token: credential.refresh,
+		}),
 		signal,
 	});
 	if (!response.ok) {
 		throw new Error(`Cursor token refresh returned HTTP ${String(response.status)}`);
 	}
-	const result = tokens(await response.json());
+	const result: unknown = await response.json();
+	if (isRecord(result) && result['shouldLogout'] === true) {
+		throw new Error('Cursor revoked this session; sign in again with /login cursor');
+	}
+	const access = accessToken(result);
 	return {
 		type: 'oauth',
-		access: result.accessToken,
-		refresh: result.refreshToken,
-		expires: cursorTokenExpiry(result.accessToken),
+		access,
+		refresh: credential.refresh,
+		expires: cursorTokenExpiry(access),
 	};
 }
 
