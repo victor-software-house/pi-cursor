@@ -69,16 +69,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
+      - name: Read package version
+        id: package
+        run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
       - name: Mint npm OIDC token
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.hasChangesets == 'false' && steps.package.outputs.version != '0.0.0'
         run: mise run release:oidc
 
       - name: Publish
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.hasChangesets == 'false' && steps.package.outputs.version != '0.0.0'
         run: mise run release
 
       - name: Tag and create GitHub Release
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.hasChangesets == 'false' && steps.package.outputs.version != '0.0.0'
         run: mise run release:tags
         env:
           GH_TOKEN: ${{ github.token }}
