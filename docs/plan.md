@@ -33,7 +33,7 @@ evidence remain preserved without claiming a supported or installable provider.
 | Run handshake, invocation multiplexing, tool mapping, `{ jsonSchema }` tool envelope | `675.js:40675` |
 | Machine identity derivation | `main.js` `id.js` / `macAddress.js` / `telemetryUtils.js` (same in 3.18.9 and 3.18.25); local recomputation equals the IDE's stored values |
 | Login: `loginDeepControl` challenge, `GET /auth/poll?uuid=&verifier=`, 60-day access JWT | captured `cursor-agent 2026.08.25` login (private repo doc 2026-08-25) |
-| Token refresh: `POST https://api2.cursor.sh/auth/exchange_user_api_key` | oh-my-pi prior art only; **unmeasured**, must be captured before release |
+| Token refresh: browser logins never refresh (measured); `exchange_user_api_key` consumes only a User API Key | live 401 matrix measured 2026-09-02 against both JWTs; CLI source confirms the separate `cursor-api-key` credential |
 | Catalog RPCs: `AvailableModels`, `GetUsableModels`, `GetDefaultModelForCli` | current CLI captures; `GetServerConfig` is not an inference authority |
 | Live proof of the approach | private provider streamed arbitrary tools with argument deltas and continuation on Composer 2.5, GPT-5.6 Sol, Claude Opus 5 Thinking, Gemini 3.7 Flash, Cursor Grok 4.6 |
 
@@ -124,9 +124,10 @@ Each slice ends committed, pushed, and green on `mise run verify`.
   through Pi's auth URL interaction, polls
   `GET https://api2.cursor.sh/auth/poll?uuid=<uuid>&verifier=<verifier>` on the captured bounded
   policy until the access/refresh pair arrives, stores `{ refresh, access, expires }` from the JWT
-  `exp`. `refreshToken` posts the refresh token to `auth/exchange_user_api_key`; before this slice
-  closes the exchange must be captured once against the real endpoint and its request/response shape
-  pinned in `docs/protocol.md`. `PI_CURSOR_TOKEN` short-circuits both for headless use.
+  `exp`. `refreshToken` exchanges the `$PI_CURSOR_API_KEY` machine key with
+  `auth/exchange_user_api_key`; a browser login without that key is never refreshable (measured 401
+  for both JWTs) and fails with re-login guidance, matching the CLI. `PI_CURSOR_TOKEN` short-circuits
+  both for headless use.
 - `index.ts`: register `cursor`; models resolved at `session_start` after credentials exist; failures
   notify through `ctx.ui.notify` and continue; reload finishes runs and rebuilds the runtime;
   shutdown closes sessions.

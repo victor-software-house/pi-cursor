@@ -6,6 +6,7 @@ import { isRecord } from '@victor-software-house/pi-type-kit';
 const loginUrl = 'https://cursor.com/loginDeepControl';
 const pollUrl = 'https://api2.cursor.sh/auth/poll';
 const refreshUrl = 'https://api2.cursor.sh/auth/exchange_user_api_key';
+const apiKeyEnvironmentVariable = 'PI_CURSOR_API_KEY';
 const maxPollAttempts = 150;
 const maxConsecutiveErrors = 3;
 const basePollDelayMs = 1_000;
@@ -128,14 +129,33 @@ export async function pollCursorAuth(
 	throw new Error('Cursor login polling timed out');
 }
 
+/**
+ * Refresh per the measured CLI contract, not the oh-my-pi prior art.
+ *
+ * `exchange_user_api_key` bearers a Cursor **User API Key** — the CLI's separate
+ * `cursor-api-key` keychain credential. Measured 2026-09-02: both login JWTs are
+ * rejected there with 401 `Invalid User API Key`, and the CLI's browser login never
+ * writes an API key, so a browser login never refreshes at all; it rides the 60-day
+ * access token and re-logins at expiry. This refresh therefore exchanges the
+ * `PI_CURSOR_API_KEY` machine key when configured and otherwise fails with re-login
+ * guidance, which Pi surfaces as an OAuth auth error while preserving the stored
+ * credential.
+ */
 export async function refreshCursorToken(
-	credential: OAuthCredential,
+	_credential: OAuthCredential,
 	signal: AbortSignal,
 	request: CursorFetch = fetch,
+	env: Readonly<Record<string, string | undefined>> = process.env,
 ): Promise<OAuthCredential> {
+	const apiKey = env[apiKeyEnvironmentVariable]?.trim();
+	if (apiKey === undefined || apiKey === '') {
+		throw new Error(
+			`Cursor browser sign-ins cannot refresh programmatically; sign in again with /login cursor or set $${apiKeyEnvironmentVariable}`,
+		);
+	}
 	const response = await request(refreshUrl, {
 		method: 'POST',
-		headers: { authorization: `Bearer ${credential.refresh}`, 'content-type': 'application/json' },
+		headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
 		body: '{}',
 		signal,
 	});
