@@ -18,6 +18,7 @@ export default defineConfig({
 	target: 'node24',
 	fixedExtension: true,
 	minify: true,
+	treeshake: true,
 	sourcemap: false,
 	clean: true,
 	hash: false,

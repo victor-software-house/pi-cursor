@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 env:
   GIT_CONFIG_COUNT: "1"
@@ -35,6 +36,8 @@ jobs:
 
       - name: Verify repository
         run: mise run verify
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || github.token }}
 
       - name: Pack dry-run
         run: mise run pack

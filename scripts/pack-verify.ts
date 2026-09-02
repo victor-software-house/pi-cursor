@@ -27,7 +27,10 @@ const allowed = new Set([
 
 const forbiddenInBundle: readonly RegExp[] = [
 	/sourceMappingURL/u,
+	/@victor-software-house\/pi-type-kit/u,
 	/victor-software-house\/pi-stuff/u,
+	/package manifest must be an object/u,
+	/src\/(?:fallback|manifest|omit-values|result|scope|thrown)\.ts/u,
 	/\/Users\/[a-z]/u,
 	/\/home\/[a-z]/u,
 	/[A-Za-z]:\\Users\\/u,

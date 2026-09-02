@@ -12,8 +12,9 @@ that acts on it.
 
 - One implementation artifact: minified `dist/index.mjs`, no source map, plus the minimal
   declaration for the extension entry. `files` is a whitelist; `pack:verify` enforces it.
-- No private package may be a source, build, or runtime dependency. Bundle the selected public
-  implementation dependencies; never re-export them.
+- `@victor-software-house/pi-type-kit` is the sole permitted private build dependency. Import exact
+  named helpers, bundle them, and prove unused modules/package names/source paths are absent from
+  `dist/index.mjs`. Pi peers are the only external runtime imports.
 - Machine identity is derived from the host with Cursor's algorithm (see decisions). Never read an
   installed IDE, never invent ids silently; the UUID fallback is persisted and reported.
 - Credentials go through Pi's OAuth provider contract. No custom stores.

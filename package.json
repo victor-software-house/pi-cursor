@@ -3,6 +3,7 @@
 	"version": "0.0.0",
 	"description": "Cursor as a plain inference provider for Pi, over aiserver.v1.InferenceService/RunInference.",
 	"license": "MIT",
+	"sideEffects": false,
 	"author": {
 		"name": "Victor Araújo",
 		"email": "victor@victor-software-house.com"
@@ -82,6 +83,7 @@
 		"@earendil-works/pi-tui": "0.84.4",
 		"@types/bun": "1.4.0",
 		"@types/node": "26.4.0",
+		"@victor-software-house/pi-type-kit": "0.0.5",
 		"bun-release": "0.0.3",
 		"oxlint": "1.80.0",
 		"oxlint-tsgolint": "7.0.2001",

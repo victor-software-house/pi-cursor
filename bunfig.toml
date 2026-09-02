@@ -4,3 +4,6 @@ linker = "hoisted"
 # locally. Never add an .npmrc — bun honours it, and a scope line without a credential
 # publishes unauthenticated.
 registry = { url = "https://registry.npmjs.org", token = "$BUN_CONFIG_TOKEN" }
+
+[install.scopes]
+"@victor-software-house" = { url = "https://npm.pkg.github.com", token = "$NODE_AUTH_TOKEN" }

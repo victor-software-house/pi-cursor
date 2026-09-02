@@ -65,9 +65,10 @@ test/
   fixtures/ tool-roundtrip.json (synthetic, secret-free)
 ```
 
-Bundled public implementation dependencies: `@bufbuild/protobuf` and, only where schema validation
-requires it, `zod`. Peers: `@earendil-works/pi-ai`, `pi-coding-agent`, `pi-tui` at `0.84.4`.
-There are no private package dependencies.
+Bundled implementation dependencies: `@bufbuild/protobuf`, `@victor-software-house/pi-type-kit`
+(the sole permitted private build dependency), and only if schema validation requires it, `zod`.
+Import exact named helpers and verify tree shaking from the packed bundle. Pi peers
+`@earendil-works/pi-ai`, `pi-coding-agent`, and `pi-tui` at `0.84.4` remain external.
 
 ## Slices
 
