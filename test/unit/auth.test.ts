@@ -1,0 +1,84 @@
+import { describe, expect, test } from 'bun:test';
+import {
+	createCursorAuthRequest,
+	cursorTokenExpiry,
+	pollCursorAuth,
+	refreshCursorToken,
+} from '@cursor/auth';
+
+const uuid = '123e4567-e89b-42d3-a456-426614174000';
+const expirySeconds = 2_000_000_000;
+
+function token(exp: number = expirySeconds): string {
+	return [
+		Buffer.from('{}').toString('base64url'),
+		Buffer.from(JSON.stringify({ exp })).toString('base64url'),
+		'signature',
+	].join('.');
+}
+
+describe('Cursor OAuth', () => {
+	test('constructs the captured challenge and browser URL', () => {
+		const request = createCursorAuthRequest({
+			randomBytes: () => new Uint8Array(Array.from({ length: 32 }, (_, index) => index)),
+			randomUuid: () => uuid,
+		});
+		expect(request).toEqual({
+			verifier: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
+			challenge: 'Yw3NKWbEM2aRElRIu7JbT_QSpJxzLbLIq8G4WBvXEN0',
+			uuid,
+			url: `https://cursor.com/loginDeepControl?challenge=Yw3NKWbEM2aRElRIu7JbT_QSpJxzLbLIq8G4WBvXEN0&uuid=${uuid}&mode=login&redirectTarget=cli`,
+		});
+	});
+
+	test('reads JWT expiry with the five-minute refresh skew', () => {
+		expect(cursorTokenExpiry(token())).toBe(expirySeconds * 1_000 - 5 * 60 * 1_000);
+		expect(() => cursorTokenExpiry('not-a-jwt')).toThrow('not a JWT');
+	});
+
+	test('treats 404 as pending and accepts the first complete token pair', async () => {
+		const delays: number[] = [];
+		const urls: string[] = [];
+		let calls = 0;
+		const credential = await pollCursorAuth(
+			{ uuid, verifier: 'verifier' },
+			new AbortController().signal,
+			{
+				sleep: async (milliseconds) => {
+					delays.push(milliseconds);
+				},
+				fetch: async (input) => {
+					urls.push(input instanceof Request ? input.url : input.toString());
+					calls += 1;
+					return calls === 1
+						? new Response('pending', { status: 404 })
+						: Response.json({ accessToken: token(), refreshToken: 'refresh' });
+				},
+			},
+		);
+		expect(delays).toEqual([1_000, 1_200]);
+		expect(urls[0]).toBe(`https://api2.cursor.sh/auth/poll?uuid=${uuid}&verifier=verifier`);
+		expect(credential).toEqual({
+			type: 'oauth',
+			access: token(),
+			refresh: 'refresh',
+			expires: expirySeconds * 1_000 - 5 * 60 * 1_000,
+		});
+	});
+
+	test('refreshes with the stored refresh token as bearer', async () => {
+		let authorization: string | null = null;
+		const refreshed = await refreshCursorToken(
+			{ type: 'oauth', access: token(), refresh: 'refresh-token', expires: 0 },
+			new AbortController().signal,
+			async (_input, init) => {
+				if (init === undefined) throw new Error('refresh request options are missing');
+				authorization = new Headers(init.headers).get('authorization');
+				expect(init.body).toBe('{}');
+				return Response.json({ accessToken: token(expirySeconds + 1), refreshToken: 'next' });
+			},
+		);
+		expect(String(authorization)).toBe('Bearer refresh-token');
+		expect(refreshed.refresh).toBe('next');
+	});
+});

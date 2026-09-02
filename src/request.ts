@@ -214,7 +214,7 @@ function routingConversation(context: Context): RunInferenceRoutingMessage[] {
 }
 
 export function inferenceRequestedModel(
-	model: Model<'cursor-agent'>,
+	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
 ): InferenceRequestedModel {
 	// Cursor IDE 3.18.9 buildRequestedModel forwards the active max-mode flag, and
@@ -230,7 +230,7 @@ export function inferenceRequestedModel(
 }
 
 export function inferenceRoutingKey(
-	model: Model<'cursor-agent'>,
+	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
 ): string {
 	const requested = inferenceRequestedModel(model, reasoning);
@@ -242,7 +242,7 @@ export function inferenceRoutingKey(
 }
 
 export function buildInferenceRunRequest(
-	model: Model<'cursor-agent'>,
+	model: Model<'cursor-inference'>,
 	context: Context,
 	sessionId: string,
 	reasoning: string | undefined,

@@ -1,8 +1,9 @@
 # pi-cursor
 
-Public Pi extension: Cursor as a plain inference provider over
-`aiserver.v1.InferenceService/RunInference`. Pi owns context, tools, execution, and transcript;
-Cursor owns routed inference.
+Stopped private proof of concept: Cursor as a plain inference provider over
+`aiserver.v1.InferenceService/RunInference`. The source is retained for research only. The public
+`pi-cursor-inference@0.0.0` package remains a blank name reservation and must not be replaced by a
+functional release.
 
 Read [`docs/plan.md`](docs/plan.md) and [`docs/decisions.md`](docs/decisions.md) before changing
 anything. Decisions outrank the current source shape; record a new decision in the same change
@@ -22,9 +23,11 @@ that acts on it.
   No packet-level claims. No credential, machine id, account id, or billing value in fixtures.
 - Recoverable failures notify through `ctx.ui.notify` and continue; `console.*` is not an operator
   channel.
-- Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks, CI, and publish.
+- Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks and CI.
 - Conventional Commits; commit and push each green slice; no AI attribution anywhere.
-- Never `changeset version` or publish from a terminal after the `0.0.0` bootstrap.
+- Keep the GitHub repository private and `package.json` marked `private: true`.
+- Never publish another npm version, create a Version Packages PR, or replace the blank `0.0.0`
+  placeholder. Do not resume release work without a new explicit operator decision.
 - Port only provider registration, OAuth login/refresh, host identity, catalog preflight,
   RunInference request/transport/stream mapping, and narrow tests. Do not carry commands, usage UI,
   database/account abstractions, keychain/1Password support, extraction machinery, or broad protos.

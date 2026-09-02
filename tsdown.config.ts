@@ -29,7 +29,7 @@ export default defineConfig({
 	],
 	deps: {
 		neverBundle: piPeers,
-		onlyBundle: [],
+		onlyBundle: ['@bufbuild/protobuf', '@victor-software-house/pi-type-kit'],
 		onlyImport: piPeers,
 	},
 });

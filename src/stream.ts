@@ -19,11 +19,13 @@ import { calculateCost, createAssistantMessageEventStream } from '@earendil-work
 import { omitUndefined } from '@victor-software-house/pi-type-kit';
 
 export interface CursorStreamRuntime {
-	readonly runtime: Pick<CursorInferenceRuntime, 'invoke'>;
+	readonly runtime:
+		| Pick<CursorInferenceRuntime, 'invoke'>
+		| ((apiKey: string) => Promise<Pick<CursorInferenceRuntime, 'invoke'>>);
 	readonly createInvocationId?: () => string;
 }
 
-function outputFor(model: Model<'cursor-agent'>): AssistantMessage {
+function outputFor(model: Model<'cursor-inference'>): AssistantMessage {
 	return {
 		role: 'assistant',
 		content: [],
@@ -49,7 +51,7 @@ function errorMessage(error: unknown): string {
 
 /** One Pi provider call is one correlated invocation on the session's routed outer run. */
 export function streamCursor(
-	model: Model<'cursor-agent'>,
+	model: Model<'cursor-inference'>,
 	context: Context,
 	runtime: CursorStreamRuntime,
 	options?: SimpleStreamOptions,
@@ -82,7 +84,11 @@ export function streamCursor(
 				new Set(context.tools?.map(({ name }) => name) ?? []),
 				invocationId,
 			);
-			await runtime.runtime.invoke(
+			const runtimeForToken =
+				typeof runtime.runtime === 'function'
+					? await runtime.runtime(options.apiKey)
+					: runtime.runtime;
+			await runtimeForToken.invoke(
 				sessionId,
 				inferenceRoutingKey(model, reasoning),
 				runRequest,

@@ -1,5 +1,8 @@
 # pi-cursor plan
 
+> **Stopped 2026-09-02.** This historical plan is retained as research context, not an active
+> roadmap. The repository remains private and no functional package release is planned.
+
 Decisions that shaped this plan: [`decisions.md`](decisions.md).
 
 ## Outcome
@@ -10,10 +13,9 @@ arguments through `aiserver.v1.InferenceService/RunInference`. Pi owns every too
 complete context and active tool schemas, executes calls through its ordinary loop, and continues
 on the same routed run. No agent bridge, no Cursor-owned tools, no hidden checkpoint state.
 
-Done when an exact published `pi-cursor-inference@0.0.1` is installed from npm into a clean Pi 0.84.4
-(Node CLI and official standalone Bun binary), logs in through the browser flow, refreshes an
-expiring token, and completes a streamed arbitrary-tool round trip on Composer 2.5 plus one row
-from each other model family the account exposes.
+The original completion target was an exact published `pi-cursor-inference@0.0.1` installed into a
+clean Pi 0.84.4. That target was cancelled before release. The implemented source and verification
+evidence remain preserved without claiming a supported or installable provider.
 
 ## Non-goals
 
@@ -30,7 +32,7 @@ from each other model family the account exposes.
 | Transport headers, cookie, checksum algorithm | `657.js:41033` |
 | Run handshake, invocation multiplexing, tool mapping, `{ jsonSchema }` tool envelope | `675.js:40675` |
 | Machine identity derivation | `main.js` `id.js` / `macAddress.js` / `telemetryUtils.js` (same in 3.18.9 and 3.18.25); local recomputation equals the IDE's stored values |
-| Login: `loginDeepControl` challenge, `POST /auth/poll`, 60-day access JWT | captured `cursor-agent 2026.08.25` login (private repo doc 2026-08-25) |
+| Login: `loginDeepControl` challenge, `GET /auth/poll?uuid=&verifier=`, 60-day access JWT | captured `cursor-agent 2026.08.25` login (private repo doc 2026-08-25) |
 | Token refresh: `POST https://api2.cursor.sh/auth/exchange_user_api_key` | oh-my-pi prior art only; **unmeasured**, must be captured before release |
 | Catalog RPCs: `AvailableModels`, `GetUsableModels`, `GetDefaultModelForCli` | current CLI captures; `GetServerConfig` is not an inference authority |
 | Live proof of the approach | private provider streamed arbitrary tools with argument deltas and continuation on Composer 2.5, GPT-5.6 Sol, Claude Opus 5 Thinking, Gemini 3.7 Flash, Cursor Grok 4.6 |
@@ -48,12 +50,13 @@ src/
   request.ts            Pi Context -> InferenceStreamRequest (system, user, images, assistant,
                         reasoning, tool calls, tool results, tools with { jsonSchema })
   stream.ts             server parts -> Pi events (thinking/text/toolcall deltas, usage, stop)
-  catalog.ts            three-surface preflight, model decomposition, 10-minute in-memory cache
+  catalog.ts            captured Connect unary preflight, model decomposition, 10-minute cache
   image.ts              image part validation
   gen/                  @bufbuild/protobuf classes generated from proto/ (bundled, gitignored)
 proto/
   aiserver/v1/inference.proto        exact reconstructed 3.18.9 schema
-  catalog/*.proto                    only the three RPC request/response closure; added with catalog
+  agent/v1/catalog.proto             selected CLI model request/response closure
+  aiserver/v1/catalog.proto          selected AvailableModels request/response closure
 docs/protocol/inference-service-3.18.9/
   artifact-lock.json                 version, commit, URL, DMG sha256, module ids
 docs/
@@ -113,12 +116,13 @@ Each slice ends committed, pushed, and green on `mise run verify`.
 
 ### 3. Provider registration, catalog, login
 
-- `catalog.ts`: `AvailableModels` + `GetUsableModels` + `GetDefaultModelForCli` unary calls over the
-  same HTTP/2 session; decomposition into Pi models with thinking levels and max mode; in-memory
+- `catalog.ts`: `AvailableModels` + `GetUsableModels` + `GetDefaultModelForCli` captured Connect unary
+  calls over `node:https`; decomposition into Pi models with thinking levels and max mode; in-memory
   10-minute cache keyed by credential digest; no stale fallback.
 - `auth.ts`: `createProvider({ auth: { oauth: { login, refreshToken, getApiKey } } })`. `login` opens
   `https://cursor.com/loginDeepControl?challenge=<S256>&uuid=<v4>&mode=login&redirectTarget=cli`
-  through `callbacks.openUrl`, polls `POST https://api2.cursor.sh/auth/poll` on the captured bounded
+  through Pi's auth URL interaction, polls
+  `GET https://api2.cursor.sh/auth/poll?uuid=<uuid>&verifier=<verifier>` on the captured bounded
   policy until the access/refresh pair arrives, stores `{ refresh, access, expires }` from the JWT
   `exp`. `refreshToken` posts the refresh token to `auth/exchange_user_api_key`; before this slice
   closes the exchange must be captured once against the real endpoint and its request/response shape

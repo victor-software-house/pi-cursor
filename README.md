@@ -1,17 +1,22 @@
 # pi-cursor-inference
 
-Cursor as a plain inference provider for [Pi](https://github.com/badlogic/pi-mono), over
-`aiserver.v1.InferenceService/RunInference`.
+> ▲ **Stopped proof of concept.** This repository remains private. No functional npm release is
+> planned.
 
-> ▲ `0.0.0` only reserves the npm name. It does not register a provider yet. The first functional
-> release will be `0.0.1`.
+`pi-cursor-inference@0.0.0` is a blank public placeholder that reserves the npm name. It does not
+register a provider. Do not install it expecting Cursor inference support.
 
-## Intended contract
+The private repository retains an unreleased implementation of Cursor as a plain inference provider
+for [Pi](https://github.com/badlogic/pi-mono), using
+`aiserver.v1.InferenceService/RunInference`. The implementation is preserved as research and is not
+supported, published, or ready for use.
 
-- Native Pi provider and `/login cursor` flow.
+## Preserved scope
+
+- Native Pi provider and Cursor browser login flow.
 - Cursor supplies inference; Pi owns context, tools, execution, and transcript.
 - Streaming thinking, text, usage, tool-call arguments, and tool continuations.
 - No `AgentService/Run`, Cursor-native tools, MCP projection, or agent bridge.
 
-See [the implementation plan](docs/plan.md) in the repository for the evidence and verification
-contract.
+The historical implementation plan and evidence boundaries are retained in
+[`docs/plan.md`](docs/plan.md). They are not an active release roadmap.

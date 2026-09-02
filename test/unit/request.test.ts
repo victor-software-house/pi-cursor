@@ -12,11 +12,11 @@ import {
 import type { Context, Model } from '@earendil-works/pi-ai';
 import { isRecord } from '@victor-software-house/pi-type-kit';
 
-const MODEL: Model<'cursor-agent'> = {
+const MODEL: Model<'cursor-inference'> = {
 	id: 'composer-2.5',
 	name: 'Composer 2.5',
 	provider: 'cursor',
-	api: 'cursor-agent',
+	api: 'cursor-inference',
 	baseUrl: 'https://api2.cursor.sh',
 	reasoning: true,
 	input: ['text', 'image'],

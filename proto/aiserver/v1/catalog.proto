@@ -1,0 +1,25 @@
+// Minimal catalog closure reconstructed from cursor-agent 2026.09.02-fa0c06e.
+// Unknown response fields are intentionally omitted: the provider does not read them.
+syntax = "proto3";
+
+package aiserver.v1;
+
+message AvailableModelsRequest {
+  optional bool use_model_parameters = 5;
+  optional bool do_not_use_markdown = 7;
+}
+
+message AvailableModelsResponse {
+  repeated AvailableModel models = 2;
+
+  message AvailableModel {
+    string name = 1;
+    optional bool supports_max_mode = 14;
+    optional string client_display_name = 17;
+    repeated ModelParameterDefinition parameter_definitions = 29;
+  }
+}
+
+message ModelParameterDefinition {
+  string id = 1;
+}

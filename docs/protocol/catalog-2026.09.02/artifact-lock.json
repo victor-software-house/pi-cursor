@@ -1,0 +1,27 @@
+{
+	"version": "2026.09.02-fa0c06e",
+	"channel": "latest",
+	"platform": "darwin/arm64",
+	"url": "https://downloads.cursor.com/lab/2026.09.02-fa0c06e/darwin/arm64/agent-cli-package.tar.gz",
+	"bundle": {
+		"bytes": 9562048,
+		"sha256": "40281ab25e88ddc8d4e8fc38890e2ea14d5fa4261e7c19931e0feb8f58fa3a55"
+	},
+	"reconstructed_schema": {
+		"messages": 4534,
+		"enums": 354,
+		"fields": 15180,
+		"services": 3,
+		"rpcs": 849,
+		"unresolved": 0,
+		"sha256": "535f6ff6968ba6c3578ca164fc2fbcac44a0b553ab01d5e919b3c1a736b7e605"
+	},
+	"selected": {
+		"service": "aiserver.v1.AiService",
+		"methods": ["AvailableModels", "GetUsableModels", "GetDefaultModelForCli"],
+		"proto_sha256": {
+			"proto/agent/v1/catalog.proto": "8811911c4633feaa93fd4ac984a22603aae067be7ada0c8c088acb3039fa81ea",
+			"proto/aiserver/v1/catalog.proto": "aa330a68a037543dac2203000b8d1ae884c6733c1a4a193070f8c09ae1821987"
+		}
+	}
+}

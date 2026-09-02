@@ -1,5 +1,9 @@
 # pi-cursor decisions
 
+> **Status:** Stopped on 2026-09-02. The repository remains private, the unreleased implementation
+> is retained as research, and the public `0.0.0` package remains a blank name reservation. No
+> functional release is planned.
+
 - 2026-09-02 Public package `pi-cursor-inference` on npm (unscoped, MIT; GitHub repository stays `pi-cursor`) is a clean proof of concept of Cursor as a plain inference provider over `aiserver.v1.InferenceService/RunInference`. It is not a port of the private `@victor-software-house/pi-cursor` extension's operator features.
 - 2026-09-02 Scope is a working provider plus login. The usage dashboard is out; it is larger than the provider and not yet fully tested.
 - 2026-09-02 Machine identity is derived from the host with Cursor's own algorithm, never read from an installed IDE. Evidence: Cursor 3.18.9 `main.js` (`id.js`, `macAddress.js`, `telemetryUtils.js`): `telemetry.machineId` = SHA-256 of the OS hardware id string (`ioreg` IOPlatformUUID on darwin, `MachineGuid` on win32, `/etc/machine-id` or hostname on linux, `smbios.system.uuid` on freebsd; random UUID fallback); `telemetry.macMachineId` = SHA-256 of the first `os.networkInterfaces()` MAC not in `{00:00:00:00:00:00, ff:ff:ff:ff:ff:ff, ac:de:48:00:11:22}`. Both recomputed locally on 2026-09-02 and equal to the IDE's stored values byte for byte. The checksum omits the `/mac` suffix when no MAC exists, as Cursor does.
@@ -13,3 +17,7 @@
 - 2026-09-02 Keep the public extraction extremely selective. Port only the runtime required for provider registration, OAuth login/refresh, host-derived identity, catalog preflight, RunInference request/transport/stream mapping, and their narrow tests. Do not carry account/database abstractions, operator commands, usage UI, keychain/1Password support, capture/extraction machinery, broad CLI proto trees, or historical artifacts.
 - 2026-09-02 `@victor-software-house/pi-type-kit` is the sole permitted private build dependency. Import exact named helpers and bundle them into the minified artifact; Pi peers remain external. Explicit tree shaking plus packed-bundle checks must prove unused type-kit modules, package names, and source paths are absent. No other private package dependency is permitted.
 - 2026-09-02 The published artifact is one minified ESM bundle with no source map plus the minimal declaration for the extension entry.
+- 2026-09-02 Cursor login polling is the captured CLI `GET /auth/poll?uuid=<uuid>&verifier=<verifier>` flow, not POST. The refresh endpoint remains prior art only and blocks the functional release until measured.
+- 2026-09-02 Catalog schema is separately pinned to `cursor-agent 2026.09.02-fa0c06e` and reduced to ten messages for exactly `AvailableModels`, `GetUsableModels`, and `GetDefaultModelForCli`. These captured Connect unary calls use `node:https`; they do not share the managed-inference HTTP/2 run.
+- 2026-09-02 Dynamic catalog refresh is fail-closed. A failed network refresh clears persisted and in-memory Cursor models before surfacing the error; it never retains a stale selectable model list.
+- 2026-09-02 Operator stopped the project before a functional release. Keep the repository private, preserve the implementation as unreleased research, leave `pi-cursor-inference@0.0.0` as the blank npm reservation, and disable release automation.

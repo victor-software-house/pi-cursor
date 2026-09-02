@@ -84,7 +84,11 @@ run = "bun test test/live"
 [tasks.gen]
 description = "Generate the selected RunInference protobuf closure"
 sources = ["proto/**/*.proto", "buf.gen.yaml", "buf.yaml"]
-outputs = ["src/gen/aiserver/v1/inference_pb.ts"]
+outputs = [
+  "src/gen/agent/v1/catalog_pb.ts",
+  "src/gen/aiserver/v1/catalog_pb.ts",
+  "src/gen/aiserver/v1/inference_pb.ts",
+]
 env = { NODE_OPTIONS = "--disable-warning=ExperimentalWarning" }
 run = "buf generate"
 

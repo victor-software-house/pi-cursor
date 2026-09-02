@@ -13,6 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exit, stderr } from 'node:process';
+import { gzipSync } from 'node:zlib';
 import { pi } from '@repo/package.json' with { type: 'json' };
 import { $ } from 'bun';
 
@@ -36,6 +37,14 @@ const forbiddenInBundle: readonly RegExp[] = [
 	/[A-Za-z]:\\Users\\/u,
 	/\bsrc\/[a-z-]+\.ts\b/u,
 ];
+
+const allowedExternalImports = new Set([
+	'@earendil-works/pi-ai',
+	'@earendil-works/pi-coding-agent',
+	'@earendil-works/pi-tui',
+]);
+const maxBundleBytes = 160_000;
+const maxGzipBytes = 50_000;
 
 const workDir = mkdtempSync(join(tmpdir(), 'pi-cursor-pack-'));
 const failures: string[] = [];
@@ -70,6 +79,22 @@ try {
 		}
 		if (bundle.split('\n').length > 50) {
 			failures.push(`bundle is not minified (${bundle.split('\n').length} lines)`);
+		}
+		const bundleBytes = Buffer.byteLength(bundle);
+		if (bundleBytes > maxBundleBytes) {
+			failures.push(`bundle exceeds ${String(maxBundleBytes)} bytes (${String(bundleBytes)})`);
+		}
+		const gzipBytes = gzipSync(bundle).byteLength;
+		if (gzipBytes > maxGzipBytes) {
+			failures.push(`gzip bundle exceeds ${String(maxGzipBytes)} bytes (${String(gzipBytes)})`);
+		}
+		const imports = [...bundle.matchAll(/(?:from|import\()["']([^"']+)["']/gu)].flatMap((match) =>
+			match[1] === undefined ? [] : [match[1]],
+		);
+		for (const specifier of new Set(imports)) {
+			if (!specifier.startsWith('node:') && !allowedExternalImports.has(specifier)) {
+				failures.push(`bundle has unexpected external import: ${specifier}`);
+			}
 		}
 	}
 } finally {

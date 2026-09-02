@@ -17,11 +17,11 @@ import type { AssistantMessageEvent, Context, Model } from '@earendil-works/pi-a
 
 type CursorManagedRuntime = Pick<CursorInferenceRuntime, 'invoke' | 'shutdown'>;
 
-const MODEL: Model<'cursor-agent'> = {
+const MODEL: Model<'cursor-inference'> = {
 	id: 'composer-2.5',
 	name: 'Composer 2.5',
 	provider: 'cursor',
-	api: 'cursor-agent',
+	api: 'cursor-inference',
 	baseUrl: 'https://api2.cursor.sh',
 	reasoning: true,
 	input: ['text', 'image'],
