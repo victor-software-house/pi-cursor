@@ -166,11 +166,16 @@ async function runPiCommand(
 }
 
 async function checkPiCommandModes(bundlePath: string, agentDir: string): Promise<void> {
-	const [printOutput, jsonOutput, settingsOutput] = await Promise.all([
+	const [printOutput, jsonOutput] = await Promise.all([
 		runPiCommand(bundlePath, join(agentDir, 'print'), 'print'),
 		runPiCommand(bundlePath, join(agentDir, 'json'), 'json'),
-		runPiCommand(bundlePath, join(agentDir, 'settings'), 'print', '/cursor settings'),
 	]);
+	const settingsOutput = await runPiCommand(
+		bundlePath,
+		join(agentDir, 'settings'),
+		'print',
+		'/cursor settings',
+	);
 	if (
 		printOutput !== undefined &&
 		!printOutput.includes('Usage: /cursor [usage|settings|help]. No args opens the action menu.')
