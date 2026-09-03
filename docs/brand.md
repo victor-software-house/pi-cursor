@@ -15,7 +15,8 @@ isometric geometry, and it must stay that way.
 | [`mark-dark.svg`](mark-dark.svg) | Same geometry, graphite field. |
 | [`banner.svg`](banner.svg) | README header, 1200×240. |
 | [`banner-dark.svg`](banner-dark.svg) | Same, graphite field. |
-| [`gallery.png`](gallery.png) | Static 1200×240 package-gallery preview, rendered from the light banner. |
+| `gallery.svg` | pi.dev package card, 3840×2160 on a 1200×675 design grid. Repository-only: it is **not** in the package `files` whitelist, so do not link to it from a packaged file — see [Gallery](#gallery). |
+| [`gallery.png`](gallery.png) | The shipped card image, rendered 1:1 from `gallery.svg`. |
 
 Pair the two fields with `<picture>` and `prefers-color-scheme`. **Never recolour a single file at
 the call site**, and never scale the mark to supply padding — see [Construction](#construction).
@@ -190,6 +191,98 @@ outlines into SVG's y-down space; the negative `s` is not optional.
 Tracking is applied as extra advance **after** each glyph, so the pen origin is the left edge of the
 first glyph's advance, not of its ink. The ink starts one left-side-bearing further right, which is
 why the wordmark's first path coordinate is not 210.
+
+## Gallery
+
+pi.dev renders package media in a **232×129.625** box with `object-fit: cover`, so the source must be
+exactly 16:9 or the card crops it. `gallery.svg` and `gallery.png` are **3840×2160 (4K)**, with the
+SVG retaining a `0 0 1200 675` design grid so the construction coordinates below stay readable.
+Resolution is not the layout contract: 16:9 is. Never reduce the raster below 4K. The bordered card's
+inner image box still trims about **2.26 design-grid units off the top and bottom**, so nothing may
+sit at the vertical edges.
+
+The card is **full bleed and opaque**: no outer corner radius, no inset hairline, no transparent
+pixel. A radius here doubles against the card's own corners, a hairline loses its horizontal runs to
+the trim and reads as a frame missing two sides, and transparent corners composite unpredictably
+against a page field we do not control. There is one field only: pi.dev serves a single image URL, so
+the gallery has no dark variant to pair.
+
+This is not the banner cropped or rescaled. It is a centred vertical stack — mark tile, wordmark,
+tagline, chip — sized for a thumbnail. The wordmark-to-tagline size ratio widens from the banner's
+3.53 to **4.33** so the wordmark still reads at 232px wide while the tagline stays one exact line.
+
+### Gallery geometry
+
+| Element | Geometry |
+|:--|:--|
+| Field | `0,0 1200×675`, no radius, opaque `#ecedef` |
+| Stack | centred on `x 600`; top `y 92`, bottom `y 582.24`; margins 92 top, 92.76 bottom |
+| Mark tile | `496,92 208×208`, rx 39, **inverted field** |
+| Mark placement | `X = 496 + 6.5u`, `Y = 92 + 6.5u` — the 32-unit mark at 6.5× |
+| Wordmark | pen origin `x 339.48`, baseline 427.5; ink 343.64–856.36, pen end 854.28 |
+| Tagline | pen origin `x 239.48`, baseline 483.1; ink 241.9–958.09, pen end 959.48 |
+| Chip | `486.88,529.74 226.25×52.5`, rx 12.5; outline inset 0.94, stroke 1.88; right edge **713.13** |
+| Chip glyph | `511.88,547.24 5×17.5`, magenta — one slab of the mark |
+| Chip label | pen origin `x 531.88`, baseline 563.49; ends at 687.88, right pad 25.25 |
+
+Three vertical gaps carry the grouping, measured **ink box to ink box**, not baseline to baseline:
+tile bottom → wordmark ink top **52**, wordmark ink bottom → tagline ink top **22**, tagline ink
+bottom → chip top **44**. Ink heights are 91.1 for the wordmark and 20.64 for the tagline.
+
+**The tagline gap is exactly half the chip gap, and that ratio is load bearing.** At the card's
+0.19333× those three gaps become 10.1, 4.3 and 8.5 px. Equalise them and the card shows three
+equidistant grey lines instead of a wordmark with its subtitle and a separate chip.
+
+The mark tile is 208, not 200, because `u = 6.5` puts every half-unit coordinate of
+[Construction](#construction) on an exact two-decimal value. At `u = 6.25` the slabs land on
+`x.xx5` and the rotation check below fails on rounding alone.
+
+The chip is the banner chip scaled by **1.25** (label 16 → 20px): box `181×42 rx 10` →
+`226.25×52.5 rx 12.5`, glyph `+20,+14 4×14` → `+25,+17.5 5×17.5`, label pen `+36` → `+45`, label
+baseline `+27` → `+33.75`. The 45 / 25.25 padding asymmetry is intentional — the magenta bar occupies
+the left — so centre the **box** on `x 600`, never the label inside the box.
+
+### Regenerating the gallery outlines
+
+Run the script in [Regenerating the outlines](#regenerating-the-outlines) with this `RUNS` instead.
+Wordmark **Black 104px with −5.2 tracking** (the banner's −0.05 em), tagline **Medium 24px**, chip
+label **Regular 20px**; the three strings are the banner's, unchanged.
+
+```python
+RUNS = [
+    ("wordmark", "pi-cursor", "Black", 104, 339.48, 427.5, -5.2),
+    ("tagline", "/cursor in Pi · unofficial routed Cursor inference", "Medium", 24, 239.48, 483.1, 0),
+    ("chip", "/cursor usage", "Regular", 20, 531.88, 563.49, 0),
+]
+```
+
+The mark slabs are baked at `496 + 6.5x, 92 + 6.5y`, exactly as the banner bakes them at 3.5×. The
+file carries **no `transform` attribute anywhere**; a `translate … scale` wrapper makes every number
+in the table above unverifiable.
+
+### Gallery verification
+
+Anything that regenerates the two gallery files must still pass all of it:
+
+1. `xmllint --noout docs/gallery.svg`, intrinsic `width="3840" height="2160"`, a proportional
+   `viewBox="0 0 1200 675"`, and a non-empty `aria-label`.
+2. No `<text>`, `font-family`, `@font-face`, `base64`, `<image>`, `<script>`, `<metadata>`, comment,
+   editor namespace, or filesystem path. The file is one `<svg>`, four `<rect>` and five `<path>`,
+   and its only URL is the SVG namespace. Also no `transform` — that one is **gallery-only**, not an
+   omission from the shared list, because [Gallery geometry](#gallery-geometry) is stated in absolute
+   coordinates and a wrapper transform would make every number in it unverifiable.
+3. `magick identify -format '%w x %h %[opaque]' docs/gallery.png` → `3840 x 2160 True`. The raster
+   must remain 16:9 and at least 4K; higher resolutions are allowed. The PNG must equal the SVG
+   render: `magick compare -metric AE <render> docs/gallery.png null:` → `0`.
+4. Rotate each unit slab by `(x,y) → (32−y, x)` and confirm the set is closed, as in
+   [Construction](#construction). Never check the mark by eye.
+5. Simulate the card **from the PNG**, never by rendering the SVG small — pi.dev resamples a bitmap,
+   and a small SVG render is crisper than anything a visitor sees:
+   `magick docs/gallery.png -filter Lanczos -resize 232x131! -gravity center -crop 232x130+0+0 card.png`.
+   Look at it, and at 2× (`464x261` cropped to `464x260`). Every 3-unit gap in the mark must still be
+   open and the magenta slab must still be visible.
+6. Render with `FONTCONFIG_FILE` pointing at a config whose only `<dir>` is empty, and confirm the
+   output is pixel-identical to a normal render.
 
 ## Verification
 

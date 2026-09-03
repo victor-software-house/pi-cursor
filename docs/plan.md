@@ -1,8 +1,8 @@
 # pi-cursor release-readiness plan
 
-> **Status:** `pi-cursor-inference@0.0.1` released 2026-09-03. npm, `v0.0.1`, the GitHub
-> Release, clean Pi installation, live routed inference, and the pi.dev extension/gallery listing
-> are verified. One non-runtime README link correction awaits a future package version.
+> **Status:** `pi-cursor-inference@0.0.1` released 2026-09-03 with runtime, install, tag,
+> GitHub Release, and pi.dev discovery verified. The operator authorized a `0.0.2` presentation
+> correction: a native 4K 16:9 gallery composition and absolute packaged-README documentation links.
 
 Decisions that govern this plan: [`decisions.md`](decisions.md).
 
@@ -216,8 +216,9 @@ Completed for `0.0.1`:
 
 The published `0.0.1` README's final relative links resolve through jsDelivr to `docs/plan.md` and
 `docs/decisions.md`, which the package intentionally does not ship, so both return 404. Main now
-uses absolute GitHub links. npm versions are immutable; publishing that documentation-only correction
-requires a separately authorized `0.0.2`. Runtime, installation, and gallery discovery are unaffected.
+uses absolute GitHub links. npm versions are immutable; the authorized `0.0.2` patch changeset
+carries that correction together with the fixed 4K 16:9 gallery image. Runtime and installation are
+unchanged.
 
 The npm packument does not expose a `dist.attestations` field for `0.0.1`. The workflow log proves
 trusted-publisher OIDC token minting and successful publication, but Bun 1.4 did not emit a separate

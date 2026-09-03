@@ -220,6 +220,15 @@ try {
 	) {
 		failures.push('pi.image does not point at the stable public gallery PNG');
 	}
+	const gallerySource = await Bun.file(join(root, 'docs', 'gallery.svg')).text();
+	if (
+		!gallerySource.includes('width="3840" height="2160"') ||
+		!gallerySource.includes('viewBox="0 0 1200 675"') ||
+		forbiddenInBrandSvg.test(gallerySource) ||
+		gallerySource.includes('transform=')
+	) {
+		failures.push('gallery SVG does not satisfy the 16:9 4K outlined-source contract');
+	}
 	await $`bun pm pack --destination ${workDir} --quiet`.quiet();
 	const tarballs = [...new Bun.Glob('*.tgz').scanSync(workDir)];
 	const tarball = tarballs[0];
@@ -269,12 +278,15 @@ try {
 		const gallery = Buffer.from(
 			await Bun.file(join(packageRoot, 'docs', 'gallery.png')).arrayBuffer(),
 		);
+		const galleryWidth = gallery.readUInt32BE(16);
+		const galleryHeight = gallery.readUInt32BE(20);
 		if (
 			gallery.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||
-			gallery.readUInt32BE(16) !== 1_200 ||
-			gallery.readUInt32BE(20) !== 240
+			galleryWidth < 3_840 ||
+			galleryHeight < 2_160 ||
+			galleryWidth * 9 !== galleryHeight * 16
 		) {
-			failures.push('gallery preview is not a 1200x240 PNG');
+			failures.push('gallery preview is not a 16:9 PNG at 4K or greater');
 		}
 		symlinkSync(join(root, 'node_modules'), join(packageRoot, 'node_modules'), 'dir');
 		await Promise.all([
