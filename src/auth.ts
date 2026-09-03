@@ -54,14 +54,18 @@ export function createCursorAuthRequest(
 	// bytes yields a challenge the server never accepts and the poll stays 404 until timeout.
 	const challenge = base64Url(createHash('sha256').update(verifier, 'utf8').digest());
 	const uuid = deps.randomUuid();
-	// Workbench `loginLink` parameter shape (pinned 3.18.9): no redirectTarget — that is the
-	// CLI/SDK portal-attribution parameter. The workbench appends mode and
-	// supportsSelectedTeamLogin; surface=glass applies only to the glass edition.
+	// Workbench `loginLink` parameter shape (pinned 3.18.9), plus the portal's own
+	// `redirectTarget=cli`: the portal defaults a missing target to "ide" (its JS accepts
+	// {cli, origin, sand}, else "ide") and fires the Cursor deep link on completion, which
+	// macOS routes to an installed IDE. The cli target suppresses that launch and changes
+	// nothing in the auth contract — the CLI polls and refreshes through the identical
+	// endpoints with this parameter.
 	const params = new URLSearchParams({
 		challenge,
 		uuid,
 		mode: 'login',
 		supportsSelectedTeamLogin: 'true',
+		redirectTarget: 'cli',
 	});
 	return { verifier, challenge, uuid, url: `${loginUrl}?${params.toString()}` };
 }

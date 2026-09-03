@@ -27,7 +27,7 @@ describe('Cursor OAuth', () => {
 			verifier: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
 			challenge: '6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A',
 			uuid,
-			url: `https://cursor.com/loginDeepControl?challenge=6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A&uuid=${uuid}&mode=login&supportsSelectedTeamLogin=true`,
+			url: `https://cursor.com/loginDeepControl?challenge=6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A&uuid=${uuid}&mode=login&supportsSelectedTeamLogin=true&redirectTarget=cli`,
 		});
 	});
 
