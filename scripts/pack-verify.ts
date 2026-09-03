@@ -9,10 +9,11 @@
  * bundle is shipped.
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exit, stderr } from 'node:process';
+import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { pi } from '@repo/package.json' with { type: 'json' };
 import { $ } from 'bun';
@@ -49,9 +50,55 @@ const allowedExternalImports = new Set([
 ]);
 const maxBundleBytes = 160_000;
 const maxGzipBytes = 50_000;
+const root = join(import.meta.dir, '..');
 
 const workDir = mkdtempSync(join(tmpdir(), 'pi-cursor-pack-'));
 const failures: string[] = [];
+
+async function checkImport(runtime: 'node' | 'bun', bundlePath: string): Promise<void> {
+	const probe = `const loaded = await import(${JSON.stringify(pathToFileURL(bundlePath).href)}); if (typeof loaded.default !== 'function') throw new Error('default export is not an extension factory');`;
+	const process = Bun.spawn({
+		cmd: [runtime, '--eval', probe],
+		stdout: 'ignore',
+		stderr: 'ignore',
+		timeout: 5_000,
+		killSignal: 'SIGKILL',
+	});
+	const exitCode = await process.exited;
+	if (exitCode !== 0) {
+		failures.push(
+			`${runtime} could not import the packed extension (exit ${String(exitCode)}${process.killed ? ', timed out' : ''})`,
+		);
+	}
+}
+
+async function checkPiLoader(bundlePath: string, agentDir: string): Promise<void> {
+	const previousAgentDir = process.env['PI_CODING_AGENT_DIR'];
+	process.env['PI_CODING_AGENT_DIR'] = agentDir;
+	try {
+		const { discoverAndLoadExtensions } = await import('@earendil-works/pi-coding-agent');
+		const loaded = await discoverAndLoadExtensions([bundlePath], workDir, agentDir);
+		for (const error of loaded.errors) {
+			failures.push(`Pi loader rejected ${error.path}: ${error.error}`);
+		}
+		if (loaded.extensions.length !== 1) {
+			failures.push(`Pi loader expected one extension, found ${loaded.extensions.length}`);
+		}
+		const extension = loaded.extensions[0];
+		if (extension !== undefined && !extension.commands.has('cursor')) {
+			failures.push('packed extension did not register the /cursor command');
+		}
+		const providers = loaded.runtime.pendingNativeProviderRegistrations;
+		if (providers.length !== 1 || providers[0]?.provider.id !== 'cursor') {
+			failures.push('packed extension did not register exactly one native Cursor provider');
+		}
+	} catch (error) {
+		failures.push(`Pi could not load the packed extension: ${String(error)}`);
+	} finally {
+		if (previousAgentDir === undefined) delete process.env['PI_CODING_AGENT_DIR'];
+		else process.env['PI_CODING_AGENT_DIR'] = previousAgentDir;
+	}
+}
 
 try {
 	await $`bun pm pack --destination ${workDir} --quiet`.quiet();
@@ -75,7 +122,15 @@ try {
 			}
 		}
 		await $`tar xzf ${tarballPath} -C ${workDir}`.quiet();
-		const bundle = await Bun.file(join(workDir, 'package', 'dist', 'index.mjs')).text();
+		const packageRoot = join(workDir, 'package');
+		const bundlePath = join(packageRoot, 'dist', 'index.mjs');
+		symlinkSync(join(root, 'node_modules'), join(packageRoot, 'node_modules'), 'dir');
+		await Promise.all([
+			checkImport('node', bundlePath),
+			checkImport('bun', bundlePath),
+			checkPiLoader(bundlePath, join(workDir, 'agent')),
+		]);
+		const bundle = await Bun.file(bundlePath).text();
 		for (const pattern of forbiddenInBundle) {
 			if (pattern.test(bundle)) {
 				failures.push(`bundle matches forbidden pattern ${pattern}`);
