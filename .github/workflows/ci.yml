@@ -37,7 +37,7 @@ jobs:
       - name: Verify repository
         run: mise run verify
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Pack dry-run
         run: mise run pack

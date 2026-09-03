@@ -45,7 +45,7 @@ jobs:
       - name: Pre-publish gates
         run: mise run verify
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Pack dry-run
         run: mise run pack
@@ -72,22 +72,23 @@ jobs:
           commitMode: github-api
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Mint npm OIDC token
         if: steps.changesets.outputs.hasChangesets == 'false'
         run: mise run release:oidc
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Publish
         if: steps.changesets.outputs.hasChangesets == 'false'
         run: mise run release
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Tag and create GitHub Release
         if: steps.changesets.outputs.hasChangesets == 'false'
         run: mise run release:tags
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
+          PI_CURSOR_PACKAGES_TOKEN: ${{ github.token }}
