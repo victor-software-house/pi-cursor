@@ -50,7 +50,7 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 				{
 					apiKey: token,
 					sessionId: `pi-cursor-live-${crypto.randomUUID()}`,
-					maxTokens: 64,
+					maxTokens: 256,
 				},
 			);
 			const eventTypes: string[] = [];
