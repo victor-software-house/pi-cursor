@@ -9,13 +9,14 @@
  * bundle is shipped.
  */
 
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exit, stderr } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { pi } from '@repo/package.json' with { type: 'json' };
+import { isRecord } from '@victor-software-house/pi-type-kit';
 import { $ } from 'bun';
 
 const allowed = new Set([
@@ -54,6 +55,12 @@ const root = join(import.meta.dir, '..');
 
 const workDir = mkdtempSync(join(tmpdir(), 'pi-cursor-pack-'));
 const failures: string[] = [];
+
+function jsonRecord(line: string): Record<string, unknown> {
+	const value: unknown = JSON.parse(line);
+	if (!isRecord(value)) throw new Error('Pi JSON mode emitted a non-object event');
+	return value;
+}
 
 async function checkImport(runtime: 'node' | 'bun', bundlePath: string): Promise<void> {
 	const probe = `const loaded = await import(${JSON.stringify(pathToFileURL(bundlePath).href)}); if (typeof loaded.default !== 'function') throw new Error('default export is not an extension factory');`;
@@ -100,6 +107,71 @@ async function checkPiLoader(bundlePath: string, agentDir: string): Promise<void
 	}
 }
 
+async function runPiCommand(
+	bundlePath: string,
+	agentDir: string,
+	mode: 'print' | 'json',
+): Promise<string | undefined> {
+	mkdirSync(agentDir, { recursive: true });
+	const command = [
+		'pi',
+		'--no-extensions',
+		'--extension',
+		bundlePath,
+		'--no-session',
+		'--no-skills',
+		'--no-themes',
+		'--no-prompt-templates',
+		'--no-context-files',
+		'--offline',
+		...(mode === 'json' ? ['--mode', 'json'] : []),
+		'-p',
+		'/cursor help',
+	];
+	const process = Bun.spawn({
+		cmd: command,
+		env: { ...Bun.env, PI_CODING_AGENT_DIR: agentDir },
+		stdout: 'pipe',
+		stderr: 'pipe',
+		timeout: 5_000,
+		killSignal: 'SIGKILL',
+	});
+	const [exitCode, stdoutOutput, stderrOutput] = await Promise.all([
+		process.exited,
+		new Response(process.stdout).text(),
+		new Response(process.stderr).text(),
+	]);
+	if (exitCode === 0) return mode === 'print' ? stderrOutput : stdoutOutput;
+	failures.push(
+		`Pi ${mode} command proof failed (exit ${String(exitCode)}${process.killed ? ', timed out' : ''})`,
+	);
+	return undefined;
+}
+
+async function checkPiCommandModes(bundlePath: string, agentDir: string): Promise<void> {
+	const [printOutput, jsonOutput] = await Promise.all([
+		runPiCommand(bundlePath, join(agentDir, 'print'), 'print'),
+		runPiCommand(bundlePath, join(agentDir, 'json'), 'json'),
+	]);
+	if (printOutput !== undefined && !printOutput.includes('Usage: /cursor [usage|help]')) {
+		failures.push('packed /cursor help produced no print-mode output');
+	}
+	if (jsonOutput !== undefined) {
+		const events = jsonOutput
+			.split('\n')
+			.filter((line) => line !== '')
+			.map(jsonRecord);
+		const commandMessage = events.find(
+			(event) =>
+				event['type'] === 'message_start' &&
+				Reflect.get(event['message'] ?? {}, 'customType') === 'cursor-command-output',
+		);
+		if (!JSON.stringify(commandMessage).includes('Usage: /cursor [usage|help]')) {
+			failures.push('packed /cursor help produced no JSON command message');
+		}
+	}
+}
+
 try {
 	await $`bun pm pack --destination ${workDir} --quiet`.quiet();
 	const tarballs = [...new Bun.Glob('*.tgz').scanSync(workDir)];
@@ -129,6 +201,7 @@ try {
 			checkImport('node', bundlePath),
 			checkImport('bun', bundlePath),
 			checkPiLoader(bundlePath, join(workDir, 'agent')),
+			checkPiCommandModes(bundlePath, join(workDir, 'command-agent')),
 		]);
 		const bundle = await Bun.file(bundlePath).text();
 		for (const pattern of forbiddenInBundle) {

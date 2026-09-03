@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { dispatchCursorCommand, getCursorCompletions } from '@cursor/command';
 import type { CursorUsage } from '@cursor/usage';
-import type { ExtensionUIContext } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, ExtensionUIContext } from '@earendil-works/pi-coding-agent';
 import { ok } from '@victor-software-house/pi-type-kit';
 
 const usage: CursorUsage = {
@@ -17,12 +17,18 @@ const usage: CursorUsage = {
 	misses: [],
 };
 
-function host(mode: 'tui' | 'print', token: string | null = 'token') {
+function host(mode: 'tui' | 'rpc' | 'json' | 'print', token: string | null = 'token') {
 	const notices: { message: string; level?: string }[] = [];
+	const outputs: string[] = [];
+	const messages: { content: string; level: unknown }[] = [];
 	let opened = 0;
 	const custom: ExtensionUIContext['custom'] = async <T>() => {
 		opened += 1;
 		return await Promise.reject<T>(new Error('pane opened'));
+	};
+	const sendMessage: Pick<ExtensionAPI, 'sendMessage'>['sendMessage'] = (message) => {
+		if (typeof message.content !== 'string') throw new Error('Cursor command output must be text');
+		messages.push({ content: message.content, level: message.details });
 	};
 	return {
 		ctx: {
@@ -37,8 +43,12 @@ function host(mode: 'tui' | 'print', token: string | null = 'token') {
 				getProviderAuth: async () =>
 					token === null ? undefined : { auth: { apiKey: token }, source: 'OAuth' },
 			},
+			sendMessage,
+			writeOutput: (output: string) => outputs.push(output),
 		},
 		notices,
+		outputs,
+		messages,
 		opened: () => opened,
 	};
 }
@@ -64,25 +74,37 @@ describe('/cursor command', () => {
 	});
 
 	test('/cursor usage prints the same summary outside the TUI', async () => {
-		const { ctx, notices } = host('print');
+		const { ctx, outputs } = host('print');
 		await dispatchCursorCommand(ctx, 'usage', { loadUsage: async () => ok(usage) });
-		expect(notices).toHaveLength(1);
-		expect(notices[0]?.message).toContain('Pro · Resets Sep 1');
-		expect(notices[0]?.message).toContain('Included');
+		expect(outputs).toHaveLength(1);
+		expect(outputs[0]).toContain('Pro · Resets Sep 1');
+		expect(outputs[0]).toContain('Included');
+	});
+
+	test('/cursor usage emits the same summary as a JSON custom message', async () => {
+		const { ctx, messages } = host('json');
+		await dispatchCursorCommand(ctx, 'usage', { loadUsage: async () => ok(usage) });
+		expect(messages).toHaveLength(1);
+		expect(messages[0]?.content).toContain('Pro · Resets Sep 1');
+		expect(messages[0]?.level).toEqual({ level: 'info' });
+	});
+
+	test('/cursor help uses RPC notifications', async () => {
+		const { ctx, notices } = host('rpc');
+		await dispatchCursorCommand(ctx, 'help');
+		expect(notices).toEqual([{ message: 'Usage: /cursor [usage|help]', level: 'info' }]);
 	});
 
 	test('missing auth gives an actionable login instruction', async () => {
-		const { ctx, notices } = host('print', null);
+		const { ctx, outputs } = host('print', null);
 		await dispatchCursorCommand(ctx, 'usage', { loadUsage: async () => ok(usage) });
-		expect(notices).toEqual([
-			{ message: 'Cursor is not signed in. Run /login cursor first.', level: 'warning' },
-		]);
+		expect(outputs).toEqual(['Cursor is not signed in. Run /login cursor first.\n']);
 	});
 
 	test('unknown subcommands are rejected with the valid command shape', async () => {
-		const { ctx, notices } = host('print');
+		const { ctx, outputs } = host('print');
 		await dispatchCursorCommand(ctx, 'accounts', { loadUsage: async () => ok(usage) });
-		expect(notices[0]?.level).toBe('error');
-		expect(notices[0]?.message).toContain('Usage: /cursor [usage|help]');
+		expect(outputs[0]).toContain('Unknown /cursor subcommand: accounts.');
+		expect(outputs[0]).toContain('Usage: /cursor [usage|help]');
 	});
 });

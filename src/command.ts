@@ -1,3 +1,4 @@
+import { stderr } from 'node:process';
 import { loadCursorUsage } from '@cursor/usage';
 import { CursorUsageComponent, createUsageLoads } from '@cursor/usage-panel';
 import { formatCursorUsageSummary } from '@cursor/usage-view';
@@ -16,10 +17,14 @@ const completions: AutocompleteItem[] = [
 	{ value: 'help', label: 'help', description: 'show command usage' },
 ];
 
+const outputType = 'cursor-command-output';
+
 export interface CursorCommandHost {
 	readonly mode: ExtensionCommandContext['mode'];
 	readonly ui: Pick<ExtensionUIContext, 'custom' | 'notify'>;
 	readonly modelRegistry: Pick<ModelRegistry, 'getProviderAuth'>;
+	readonly sendMessage: Pick<ExtensionAPI, 'sendMessage'>['sendMessage'];
+	readonly writeOutput: (output: string) => void;
 }
 
 export interface CursorCommandDependencies {
@@ -33,19 +38,41 @@ export function getCursorCompletions(prefix: string): AutocompleteItem[] | null 
 	return matches.length === 0 ? null : matches;
 }
 
+function emitCommandOutput(
+	ctx: CursorCommandHost,
+	message: string,
+	level: 'info' | 'warning' | 'error',
+): void {
+	if (ctx.mode === 'print') {
+		ctx.writeOutput(`${message}\n`);
+		return;
+	}
+	if (ctx.mode === 'json') {
+		ctx.sendMessage({
+			customType: outputType,
+			content: message,
+			display: true,
+			details: { level },
+		});
+		return;
+	}
+	ctx.ui.notify(message, level);
+}
+
 async function tokenForUsage(ctx: CursorCommandHost): Promise<string | undefined> {
 	try {
 		const resolved = await ctx.modelRegistry.getProviderAuth('cursor');
 		const token = resolved?.auth.apiKey;
 		if (token !== undefined && token !== '') return token;
 	} catch (error) {
-		ctx.ui.notify(
+		emitCommandOutput(
+			ctx,
 			`Cursor authentication failed: ${error instanceof Error ? error.message : String(error)}`,
 			'error',
 		);
 		return undefined;
 	}
-	ctx.ui.notify('Cursor is not signed in. Run /login cursor first.', 'warning');
+	emitCommandOutput(ctx, 'Cursor is not signed in. Run /login cursor first.', 'warning');
 	return undefined;
 }
 
@@ -60,10 +87,10 @@ async function showCursorUsage(
 	if (ctx.mode !== 'tui') {
 		const result = await loadUsage({ token });
 		if (!result.ok) {
-			ctx.ui.notify(`${result.error.method} failed: ${result.error.message}`, 'error');
+			emitCommandOutput(ctx, `${result.error.method} failed: ${result.error.message}`, 'error');
 			return;
 		}
-		ctx.ui.notify(formatCursorUsageSummary(result.value).join('\n'), 'info');
+		emitCommandOutput(ctx, formatCursorUsageSummary(result.value).join('\n'), 'info');
 		return;
 	}
 
@@ -113,18 +140,23 @@ export async function dispatchCursorCommand(
 		return;
 	}
 	if (normalized === 'help') {
-		ctx.ui.notify(usage, 'info');
+		emitCommandOutput(ctx, usage, 'info');
 		return;
 	}
-	ctx.ui.notify(`Unknown /cursor subcommand: ${normalized}.\n${usage}`, 'error');
+	emitCommandOutput(ctx, `Unknown /cursor subcommand: ${normalized}.\n${usage}`, 'error');
 }
 
-export function registerCursorCommand(pi: Pick<ExtensionAPI, 'registerCommand'>): void {
+export function registerCursorCommand(
+	pi: Pick<ExtensionAPI, 'registerCommand' | 'sendMessage'>,
+): void {
 	pi.registerCommand(command, {
 		description: 'Open Cursor account usage and per-model spend',
 		getArgumentCompletions: getCursorCompletions,
 		handler: async (args, ctx) => {
-			await dispatchCursorCommand(ctx, args);
+			await dispatchCursorCommand(
+				{ ...ctx, sendMessage: pi.sendMessage, writeOutput: (output) => stderr.write(output) },
+				args,
+			);
 		},
 	});
 }
