@@ -7,11 +7,11 @@ const loginUrl = 'https://cursor.com/loginDeepControl';
 const pollUrl = 'https://api2.cursor.sh/auth/poll';
 const refreshUrl = 'https://api2.cursor.sh/oauth/token';
 const refreshClientId = 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB';
-const maxPollAttempts = 150;
-const maxConsecutiveErrors = 3;
-const basePollDelayMs = 1_000;
-const maxPollDelayMs = 10_000;
-const backoffMultiplier = 1.2;
+const pollIntervalMs = 500;
+const pollWindowMs = 180_000;
+const refreshDeadlineMs = 20_000;
+const clientTypeHeader = 'x-cursor-client-type';
+const clientType = 'ide';
 const expirySkewMs = 5 * 60 * 1_000;
 
 export interface CursorAuthRequest {
@@ -54,7 +54,15 @@ export function createCursorAuthRequest(
 	// bytes yields a challenge the server never accepts and the poll stays 404 until timeout.
 	const challenge = base64Url(createHash('sha256').update(verifier, 'utf8').digest());
 	const uuid = deps.randomUuid();
-	const params = new URLSearchParams({ challenge, uuid, mode: 'login', redirectTarget: 'cli' });
+	// Workbench `loginLink` parameter shape (pinned 3.18.9): no redirectTarget — that is the
+	// CLI/SDK portal-attribution parameter. The workbench appends mode and
+	// supportsSelectedTeamLogin; surface=glass applies only to the glass edition.
+	const params = new URLSearchParams({
+		challenge,
+		uuid,
+		mode: 'login',
+		supportsSelectedTeamLogin: 'true',
+	});
 	return { verifier, challenge, uuid, url: `${loginUrl}?${params.toString()}` };
 }
 
@@ -101,24 +109,56 @@ export function cursorTokenExpiry(token: string): number {
 	return decoded['exp'] * 1_000 - expirySkewMs;
 }
 
+/**
+ * Workbench poll headers (pinned 3.18.9 `fetchPendingBrowserLoginSession`): traceparent,
+ * privacy-mode ghost header, onboarding flag, and the desktop client type. The values here
+ * are the workbench's own defaults for a machine with no privacy-mode override and no MDM
+ * sign-in policy (whose header helper then contributes nothing).
+ */
+function workbenchPollHeaders(): Record<string, string> {
+	const traceId = randomBytes(16).toString('hex');
+	const spanId = randomBytes(8).toString('hex');
+	return {
+		traceparent: `00-${traceId}-${spanId}-00`,
+		'x-ghost-mode': 'implicit-false',
+		'x-new-onboarding-completed': 'false',
+		[clientTypeHeader]: clientType,
+	};
+}
+
+class CursorSignInPolicyError extends Error {
+	constructor(detail: string) {
+		super(`Cursor login denied by sign-in policy: ${detail}`);
+		this.name = 'CursorSignInPolicyError';
+	}
+}
+
+/**
+ * Poll exactly like the pinned 3.18.9 workbench: a fixed 500 ms GET interval against
+ * `/auth/poll` for the ~180 s login window, with no backoff and no error cap — the
+ * workbench's interval callback has no catch, so transient failures just wait for the
+ * next tick. `404` means the login is still pending; a `403` carrying the MDM
+ * sign-in-policy sentinel means the login was denied; every other failure keeps polling.
+ */
 export async function pollCursorAuth(
 	request: Pick<CursorAuthRequest, 'uuid' | 'verifier'>,
 	signal: AbortSignal,
 	deps: Pick<CursorAuthDependencies, 'fetch' | 'sleep'> = dependencies,
 ): Promise<OAuthCredential> {
-	let pollDelay = basePollDelayMs;
-	let consecutiveErrors = 0;
-	for (let attempt = 0; attempt < maxPollAttempts; attempt += 1) {
-		await deps.sleep(pollDelay, signal);
-		signal.throwIfAborted();
+	const deadline = Date.now() + pollWindowMs;
+	while (!signal.aborted && Date.now() < deadline) {
+		await deps.sleep(pollIntervalMs, signal);
+		if (signal.aborted) break;
 		try {
 			const url = new URL(pollUrl);
 			url.search = new URLSearchParams(request).toString();
-			const response = await deps.fetch(url, { signal });
-			if (response.status === 404) {
-				consecutiveErrors = 0;
-				pollDelay = Math.min(pollDelay * backoffMultiplier, maxPollDelayMs);
-				continue;
+			const response = await deps.fetch(url, { headers: workbenchPollHeaders(), signal });
+			if (response.status === 404) continue;
+			if (response.status === 403) {
+				const body: unknown = await response.json().catch(() => undefined);
+				if (isRecord(body) && typeof body['error'] === 'string') {
+					throw new CursorSignInPolicyError(body['error']);
+				}
 			}
 			if (!response.ok)
 				throw new Error(`Cursor login poll returned HTTP ${String(response.status)}`);
@@ -130,57 +170,69 @@ export async function pollCursorAuth(
 				expires: cursorTokenExpiry(result.accessToken),
 			};
 		} catch (error) {
-			if (signal.aborted) throw error;
-			consecutiveErrors += 1;
-			if (consecutiveErrors >= maxConsecutiveErrors) {
-				throw new Error('Cursor login polling failed three consecutive times', { cause: error });
-			}
+			if (signal.aborted || error instanceof CursorSignInPolicyError) throw error;
 		}
 	}
 	throw new Error('Cursor login polling timed out');
 }
 
 /**
- * Refresh per the measured IDE workbench contract — the only client that refreshes
- * a browser login. Extracted from the pinned 3.18.9 workbench and measured live
- * 2026-09-02: `POST /oauth/token` with an OAuth2 refresh-token grant consumes the
- * PKCE login's refresh JWT and returns a fresh 60-day access JWT. The refresh JWT
- * is durable and non-rotating (the response carries no `refresh_token`; repeated
- * grants with the same token each returned 200). `exchange_user_api_key` is a
- * different endpoint that bearers a User API Key and rejects both login JWTs with
- * 401 — the CLI, agent-host, and SDK never refresh a browser login at all.
- * `shouldLogout: true` means the server revoked the session (e.g. MDM sign-in
- * policy); treat it as a re-login error while Pi preserves the stored credential.
+ * Refresh per the IDE workbench — the credential owner for the agent-host transport we
+ * mirror. Provenance (pinned 3.18.9): the agent-host extension's credentialManager reads
+ * `cursor.getCursorAuthToken()` (the workbench-managed token), its `getApiKey()` is always
+ * undefined, and its `setAuthentication` merely executes `cursorAuth.triggerTokenRefresh`
+ * — so login and refresh are entirely the workbench's. Its `_performAccessTokenRefresh`
+ * posts the OAuth2 refresh-token grant below (20 s deadline, `x-cursor-client-type: ide`,
+ * MDM headers when configured) and measured live 2026-09-02: the PKCE login's refresh JWT
+ * is durable and non-rotating — repeated grants with the same token each returned 200 with
+ * a fresh 60-day access JWT, and the response carries no `refresh_token`.
+ *
+ * Deliberate deviation, measured not invented: the workbench stores the new access token
+ * as BOTH access and refresh (`storeAccessRefreshToken(c.access_token, c.access_token)`);
+ * pi-cursor keeps the original refresh token, which the server keeps accepting. Granting
+ * with an access token as `refresh_token` is unmeasured, so the quirk is not copied.
+ * `exchange_user_api_key` is a different endpoint that bearers a User API Key and rejects
+ * both login JWTs with 401. `shouldLogout: true` means server-side revocation (e.g. MDM
+ * sign-in policy); treat it as a re-login error while Pi preserves the stored credential.
  */
 export async function refreshCursorToken(
 	credential: OAuthCredential,
 	signal: AbortSignal,
 	request: CursorFetch = fetch,
 ): Promise<OAuthCredential> {
-	const response = await request(refreshUrl, {
-		method: 'POST',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({
-			grant_type: 'refresh_token',
-			client_id: refreshClientId,
-			refresh_token: credential.refresh,
-		}),
-		signal,
-	});
-	if (!response.ok) {
-		throw new Error(`Cursor token refresh returned HTTP ${String(response.status)}`);
+	const deadline = new AbortController();
+	const timer = setTimeout(() => deadline.abort(), refreshDeadlineMs);
+	const onAbort = () => deadline.abort();
+	signal.addEventListener('abort', onAbort, { once: true });
+	try {
+		const response = await request(refreshUrl, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', [clientTypeHeader]: clientType },
+			body: JSON.stringify({
+				grant_type: 'refresh_token',
+				client_id: refreshClientId,
+				refresh_token: credential.refresh,
+			}),
+			signal: deadline.signal,
+		});
+		if (!response.ok) {
+			throw new Error(`Cursor token refresh returned HTTP ${String(response.status)}`);
+		}
+		const result: unknown = await response.json();
+		if (isRecord(result) && result['shouldLogout'] === true) {
+			throw new Error('Cursor revoked this session; sign in again with /login cursor');
+		}
+		const access = accessToken(result);
+		return {
+			type: 'oauth',
+			access,
+			refresh: credential.refresh,
+			expires: cursorTokenExpiry(access),
+		};
+	} finally {
+		clearTimeout(timer);
+		signal.removeEventListener('abort', onAbort);
 	}
-	const result: unknown = await response.json();
-	if (isRecord(result) && result['shouldLogout'] === true) {
-		throw new Error('Cursor revoked this session; sign in again with /login cursor');
-	}
-	const access = accessToken(result);
-	return {
-		type: 'oauth',
-		access,
-		refresh: credential.refresh,
-		expires: cursorTokenExpiry(access),
-	};
 }
 
 export function cursorOAuth(deps: CursorAuthDependencies = dependencies): OAuthAuth {

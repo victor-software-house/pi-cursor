@@ -27,7 +27,7 @@ describe('Cursor OAuth', () => {
 			verifier: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8',
 			challenge: '6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A',
 			uuid,
-			url: `https://cursor.com/loginDeepControl?challenge=6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A&uuid=${uuid}&mode=login&redirectTarget=cli`,
+			url: `https://cursor.com/loginDeepControl?challenge=6oZqdX5MOLq_qBJ8vppAnT4fk6AP8UiP9zX8-Rev_9A&uuid=${uuid}&mode=login&supportsSelectedTeamLogin=true`,
 		});
 	});
 
@@ -36,9 +36,10 @@ describe('Cursor OAuth', () => {
 		expect(() => cursorTokenExpiry('not-a-jwt')).toThrow('not a JWT');
 	});
 
-	test('treats 404 as pending and accepts the first complete token pair', async () => {
+	test('polls on the workbench interval with workbench headers until the pair arrives', async () => {
 		const delays: number[] = [];
 		const urls: string[] = [];
+		const headerSets: string[][] = [];
 		let calls = 0;
 		const credential = await pollCursorAuth(
 			{ uuid, verifier: 'verifier' },
@@ -47,8 +48,9 @@ describe('Cursor OAuth', () => {
 				sleep: async (milliseconds) => {
 					delays.push(milliseconds);
 				},
-				fetch: async (input) => {
+				fetch: async (input, init) => {
 					urls.push(input instanceof Request ? input.url : input.toString());
+					headerSets.push([...new Headers(init?.headers).keys()].sort());
 					calls += 1;
 					return calls === 1
 						? new Response('pending', { status: 404 })
@@ -56,8 +58,14 @@ describe('Cursor OAuth', () => {
 				},
 			},
 		);
-		expect(delays).toEqual([1_000, 1_200]);
+		expect(delays).toEqual([500, 500]);
 		expect(urls[0]).toBe(`https://api2.cursor.sh/auth/poll?uuid=${uuid}&verifier=verifier`);
+		expect(headerSets[0]).toEqual([
+			'traceparent',
+			'x-cursor-client-type',
+			'x-ghost-mode',
+			'x-new-onboarding-completed',
+		]);
 		expect(credential).toEqual({
 			type: 'oauth',
 			access: token(),
@@ -66,8 +74,48 @@ describe('Cursor OAuth', () => {
 		});
 	});
 
+	test('keeps polling through transient failures until the window closes', async () => {
+		const controller = new AbortController();
+		let elapsed = 0;
+		let fetchCalls = 0;
+		let failure: unknown;
+		try {
+			await pollCursorAuth({ uuid, verifier: 'verifier' }, controller.signal, {
+				sleep: async (milliseconds) => {
+					elapsed += milliseconds;
+					if (elapsed >= 180_000) controller.abort();
+				},
+				fetch: async () => {
+					fetchCalls += 1;
+					throw new Error('transient network failure');
+				},
+			});
+		} catch (error) {
+			failure = error;
+		}
+		expect(fetchCalls).toBe(359);
+		expect(failure).toBeInstanceOf(Error);
+		if (!(failure instanceof Error)) throw new Error('expected an Error');
+		expect(failure.message).toBe('Cursor login polling timed out');
+	});
+
+	test('surfaces an MDM sign-in policy denial from a 403 sentinel', async () => {
+		let failure: unknown;
+		try {
+			await pollCursorAuth({ uuid, verifier: 'verifier' }, new AbortController().signal, {
+				sleep: async () => undefined,
+				fetch: async () => Response.json({ error: 'mdm-sign-in-policy' }, { status: 403 }),
+			});
+		} catch (error) {
+			failure = error;
+		}
+		expect(failure).toBeInstanceOf(Error);
+		if (!(failure instanceof Error)) throw new Error('expected an Error');
+		expect(failure.message).toContain('sign-in policy');
+	});
+
 	test('refreshes via the workbench oauth grant and keeps the durable refresh token', async () => {
-		const requests: Array<{ url: string; body: unknown }> = [];
+		const requests: Array<{ url: string; body: unknown; clientType: string | null }> = [];
 		const refreshed = await refreshCursorToken(
 			{ type: 'oauth', access: token(), refresh: 'refresh-token', expires: 0 },
 			new AbortController().signal,
@@ -75,7 +123,11 @@ describe('Cursor OAuth', () => {
 				if (init === undefined) throw new Error('refresh request options are missing');
 				if (typeof init.body !== 'string') throw new Error('refresh request body is not a string');
 				if (typeof input !== 'string') throw new Error('refresh request url is not a string');
-				requests.push({ url: input, body: JSON.parse(init.body) });
+				requests.push({
+					url: input,
+					body: JSON.parse(init.body),
+					clientType: new Headers(init.headers).get('x-cursor-client-type'),
+				});
 				return Response.json({
 					access_token: token(expirySeconds + 1),
 					id_token: 'id',
@@ -91,6 +143,7 @@ describe('Cursor OAuth', () => {
 					client_id: 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB',
 					refresh_token: 'refresh-token',
 				},
+				clientType: 'ide',
 			},
 		]);
 		expect(refreshed.access).toBe(token(expirySeconds + 1));
