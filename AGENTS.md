@@ -1,8 +1,10 @@
 # pi-cursor
 
-Private proof of concept, resumed 2026-09-02: Cursor as a plain inference provider over
-`aiserver.v1.InferenceService/RunInference`. The public `pi-cursor-inference@0.0.0` package remains
-a blank name reservation; release automation stays disabled pending an explicit operator decision.
+Public release candidate as of 2026-09-03: Cursor as a plain inference provider over
+`aiserver.v1.InferenceService/RunInference`. The complete reachable history passed
+[`docs/public-history-audit-2026-09-03.md`](docs/public-history-audit-2026-09-03.md) before the
+repository visibility change. The public `pi-cursor-inference@0.0.0` package remains a blank name
+reservation; release automation stays disabled pending an explicit operator decision.
 
 Read [`docs/plan.md`](docs/plan.md) and [`docs/decisions.md`](docs/decisions.md) before changing
 anything. Decisions outrank the current source shape; record a new decision in the same change
@@ -25,7 +27,8 @@ that acts on it.
   channel.
 - Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks and CI.
 - Conventional Commits; commit and push each green slice; no AI attribution anywhere.
-- Keep the GitHub repository private and `package.json` marked `private: true`.
+- Keep `package.json` marked `private: true` until the operator explicitly authorizes the first
+  functional npm release. The GitHub repository is public after the completed history audit.
 - Never publish another npm version, create a Version Packages PR, or replace the blank `0.0.0`
   placeholder. Do not resume release work without a new explicit operator decision.
 - Port only provider registration, OAuth login/refresh, host identity, catalog preflight,

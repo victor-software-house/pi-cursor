@@ -5,9 +5,10 @@
   <img src="docs/banner.svg" alt="pi-cursor — /cursor in Pi · unofficial routed Cursor inference">
 </picture>
 
-> ▲ **Release candidate, not published.** The repository remains private and this source package
-> remains marked private. The public `pi-cursor-inference@0.0.0` package is still a blank name
-> reservation and does not contain this provider.
+> ▲ **Public release candidate, not published.** The repository history passed the
+> [pre-publication privacy audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/public-history-audit-2026-09-03.md). This source package
+> remains marked private, and the public `pi-cursor-inference@0.0.0` package is still a blank name
+> reservation that does not contain this provider.
 
 This repository implements Cursor as an unofficial plain inference provider for
 [Pi](https://github.com/earendil-works/pi-mono) over

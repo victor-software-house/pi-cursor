@@ -1,7 +1,6 @@
 # pi-cursor release-readiness plan
 
-> **Status:** Implementation and release-candidate proof completed 2026-09-03. Publication remains
-> disabled until the operator explicitly authorizes it.
+> **Status:** Implementation, release-candidate proof, and public-history privacy audit completed 2026-09-03. The GitHub repository is public. npm publication remains disabled until the operator explicitly authorizes it.
 
 Decisions that govern this plan: [`decisions.md`](decisions.md).
 
@@ -13,9 +12,10 @@ provider and `/cursor` Usage/Settings action menu. It uses Cursor's
 context, arbitrary tool schemas, execution, continuation, branching, and transcript.
 
 The functional implementation is not the public npm package yet. The existing
-`pi-cursor-inference@0.0.0` is a blank name reservation. The repository stays private,
-`package.json` stays `private: true`, and no release workflow or functional npm version is created
-without a separate operator decision.
+`pi-cursor-inference@0.0.0` is a blank name reservation. The repository's reachable history passed
+[`public-history-audit-2026-09-03.md`](public-history-audit-2026-09-03.md) before visibility changed
+to public. `package.json` stays `private: true`, and no release workflow or functional npm version is
+created without a separate operator decision.
 
 ## Scope
 
@@ -182,20 +182,20 @@ The temporary token, Ego Browser task space, and Herdr test pane were removed af
 
 ## Remaining publication gates
 
-These steps are intentionally unstarted and require an explicit operator decision:
+The repository-visibility gate is complete. These npm release steps remain intentionally unstarted
+and require an explicit operator decision:
 
-1. Authorize the first functional public release.
-2. Make the GitHub repository public and remove `private: true` from `package.json` in the same
+1. Authorize the first functional public release and remove `private: true` in the same
    release-enablement change.
-3. Add and review the npm OIDC/Changesets release workflow; configure npm trusted publishing for
+2. Add and review the npm OIDC/Changesets release workflow; configure npm trusted publishing for
    that exact workflow.
-4. Add a patch Changeset for the first functional `0.0.1` release. Do not alter the existing blank
+3. Add a patch Changeset for the first functional `0.0.1` release. Do not alter the existing blank
    `0.0.0` package manually.
-5. Merge the generated Version Packages PR only after its current head passes CI and package gates.
-6. Let CI publish `0.0.1`; do not publish, tag, or edit changelogs from a terminal.
-7. In a clean agent directory, install the exact npm version, run `/login cursor`, confirm the
+4. Merge the generated Version Packages PR only after its current head passes CI and package gates.
+5. Let CI publish `0.0.1`; do not publish, tag, or edit changelogs from a terminal.
+6. In a clean agent directory, install the exact npm version, run `/login cursor`, confirm the
    provider catalog and `/cursor` pane, and perform one bounded Composer response.
-8. Verify npm metadata, tag target, GitHub Release, and exact-version Node/Bun load before calling
+7. Verify npm metadata, tag target, GitHub Release, and exact-version Node/Bun load before calling
    the release complete.
 
 ## Known boundaries
