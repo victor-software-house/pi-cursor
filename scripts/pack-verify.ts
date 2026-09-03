@@ -30,10 +30,10 @@ const allowed = new Set([
 
 const forbiddenInBundle: readonly RegExp[] = [
 	/sourceMappingURL/u,
-	/@victor-software-house\/pi-type-kit/u,
+	/@victor-software-house\/pi-(?:components|type-kit)/u,
 	/victor-software-house\/pi-stuff/u,
 	/package manifest must be an object/u,
-	/src\/(?:fallback|manifest|omit-values|result|scope|thrown)\.ts/u,
+	/src\/(?:bordered|fallback|latest-request|manifest|menu|omit-values|panel|result|scope|settings|thrown)\.ts/u,
 	/\/Users\/[a-z]/u,
 	/\/home\/[a-z]/u,
 	/[A-Za-z]:\\Users\\/u,
@@ -111,6 +111,7 @@ async function runPiCommand(
 	bundlePath: string,
 	agentDir: string,
 	mode: 'print' | 'json',
+	prompt = '/cursor help',
 ): Promise<string | undefined> {
 	mkdirSync(agentDir, { recursive: true });
 	const command = [
@@ -126,7 +127,7 @@ async function runPiCommand(
 		'--offline',
 		...(mode === 'json' ? ['--mode', 'json'] : []),
 		'-p',
-		'/cursor help',
+		prompt,
 	];
 	const process = Bun.spawn({
 		cmd: command,
@@ -149,12 +150,24 @@ async function runPiCommand(
 }
 
 async function checkPiCommandModes(bundlePath: string, agentDir: string): Promise<void> {
-	const [printOutput, jsonOutput] = await Promise.all([
+	const [printOutput, jsonOutput, settingsOutput] = await Promise.all([
 		runPiCommand(bundlePath, join(agentDir, 'print'), 'print'),
 		runPiCommand(bundlePath, join(agentDir, 'json'), 'json'),
+		runPiCommand(bundlePath, join(agentDir, 'settings'), 'print', '/cursor settings'),
 	]);
-	if (printOutput !== undefined && !printOutput.includes('Usage: /cursor [usage|help]')) {
+	if (
+		printOutput !== undefined &&
+		!printOutput.includes('Usage: /cursor [usage|settings|help]. No args opens the action menu.')
+	) {
 		failures.push('packed /cursor help produced no print-mode output');
+	}
+	if (
+		settingsOutput !== undefined &&
+		(!settingsOutput.includes('strict reconciliation: on') ||
+			!settingsOutput.includes('persist diagnostics: off') ||
+			!settingsOutput.includes('thinking preservation: always on'))
+	) {
+		failures.push('packed /cursor settings did not report safe defaults');
 	}
 	if (jsonOutput !== undefined) {
 		const events = jsonOutput
@@ -166,7 +179,11 @@ async function checkPiCommandModes(bundlePath: string, agentDir: string): Promis
 				event['type'] === 'message_start' &&
 				Reflect.get(event['message'] ?? {}, 'customType') === 'cursor-command-output',
 		);
-		if (!JSON.stringify(commandMessage).includes('Usage: /cursor [usage|help]')) {
+		if (
+			!JSON.stringify(commandMessage).includes(
+				'Usage: /cursor [usage|settings|help]. No args opens the action menu.',
+			)
+		) {
 			failures.push('packed /cursor help produced no JSON command message');
 		}
 	}

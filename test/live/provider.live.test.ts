@@ -100,7 +100,7 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 						},
 					],
 				},
-				{ runtime },
+				{ runtime, settings: { strictReconciliation: true, diagnostics: true } },
 				{
 					apiKey: token,
 					sessionId: `pi-cursor-live-${crypto.randomUUID()}`,
@@ -138,7 +138,7 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 						},
 					],
 				},
-				{ runtime },
+				{ runtime, settings: { strictReconciliation: true, diagnostics: true } },
 				{
 					apiKey: token,
 					sessionId: `pi-cursor-default-live-${crypto.randomUUID()}`,
@@ -173,7 +173,7 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 			const first = streamCursor(
 				model,
 				{ messages: [{ role: 'user', content: prompt, timestamp: Date.now() }], tools: [tool] },
-				{ runtime },
+				{ runtime, settings: { strictReconciliation: true, diagnostics: true } },
 				{ apiKey: token, sessionId, maxTokens: 512 },
 			);
 			let argumentDeltas = 0;
@@ -212,7 +212,7 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 			const continuation = streamCursor(
 				model,
 				context,
-				{ runtime },
+				{ runtime, settings: { strictReconciliation: true, diagnostics: true } },
 				{ apiKey: token, sessionId, maxTokens: 256 },
 			);
 			let continuationEvents = 0;

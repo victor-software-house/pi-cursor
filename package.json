@@ -87,6 +87,7 @@
 		"@earendil-works/pi-tui": "0.84.4",
 		"@types/bun": "1.4.0",
 		"@types/node": "26.4.0",
+		"@victor-software-house/pi-components": "0.2.17",
 		"@victor-software-house/pi-type-kit": "0.0.5",
 		"bun-release": "0.0.3",
 		"oxlint": "1.80.0",

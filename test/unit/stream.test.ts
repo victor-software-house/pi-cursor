@@ -20,6 +20,8 @@ import {
 	RunInferenceInvocationResponseSchema,
 	RunInferenceServerMessageSchema,
 } from '@cursor/gen/aiserver/v1/inference_pb';
+import type { CursorSettings } from '@cursor/settings';
+import { DEFAULT_CURSOR_SETTINGS } from '@cursor/settings';
 import { streamCursor } from '@cursor/stream';
 import type { CursorInferenceRuntime } from '@cursor/transport';
 import type {
@@ -101,6 +103,7 @@ async function collect(
 	context: Context,
 	runtime: CursorManagedRuntime,
 	options: SimpleStreamOptions = { apiKey: 'token', sessionId: 'pi-session' },
+	settings: CursorSettings = DEFAULT_CURSOR_SETTINGS,
 ): Promise<{
 	readonly events: AssistantMessageEvent[];
 	readonly result: Awaited<ReturnType<ReturnType<typeof streamCursor>['result']>>;
@@ -108,7 +111,7 @@ async function collect(
 	const stream = streamCursor(
 		MODEL,
 		context,
-		{ runtime, createInvocationId: () => 'invocation-test' },
+		{ runtime, createInvocationId: () => 'invocation-test', settings },
 		options,
 	);
 	const events: AssistantMessageEvent[] = [];
@@ -265,6 +268,8 @@ describe('managed inference Pi stream', () => {
 					},
 				}),
 			]),
+			{ apiKey: 'token', sessionId: 'pi-session' },
+			{ strictReconciliation: true, diagnostics: true },
 		);
 		expect(result.content).toEqual([
 			{ type: 'thinking', thinking: '', thinkingSignature: 'opaque-reasoning' },
@@ -556,5 +561,93 @@ describe('managed inference Pi stream', () => {
 		const result = await stream.result();
 		expect(result.stopReason).toBe('error');
 		expect(result.errorMessage).toContain("unadvertised tool 'unknown_tool'");
+	});
+
+	test('does not persist assistant diagnostics by default', async () => {
+		const { result } = await collect(
+			{ messages: [{ role: 'user', content: 'answer', timestamp: 1 }] },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'textPart',
+						value: create(InferenceTextStreamPartSchema, { text: 'answer', isFinal: true }),
+					},
+				}),
+			]),
+		);
+		expect(result.diagnostics).toBeUndefined();
+	});
+
+	test('can disable cross-copy equality while preserving empty final reasoning recovery', async () => {
+		const complete = response('ignored', {
+			response: {
+				case: 'toolCallPart',
+				value: create(InferenceToolCallStreamPartSchema, {
+					toolCallId: 'tool-1',
+					toolName: TOOL.name,
+					args: '{"left":"stream","right":"value"}',
+					isComplete: true,
+				}),
+			},
+		});
+		const final = response('ignored', {
+			response: {
+				case: 'responseInfo',
+				value: create(InferenceResponseInfoSchema, {
+					messages: [
+						create(InferenceResponseMessageSchema, {
+							role: InferenceMessageRole.ASSISTANT,
+							reasoningParts: [
+								create(InferenceReasoningPartSchema, {
+									isRedacted: true,
+									redactedData: 'opaque',
+								}),
+							],
+							toolCalls: [
+								{
+									toolCallId: 'tool-1',
+									toolName: TOOL.name,
+									rawToolCallArgs: '{"left":"final","right":"value"}',
+								},
+							],
+						}),
+					],
+				}),
+			},
+		});
+		const thinking = response('ignored', {
+			response: {
+				case: 'thinkingPart',
+				value: create(InferenceThinkingStreamPartSchema, {
+					text: 'keep this thinking',
+					isFinal: true,
+				}),
+			},
+		});
+		const { result } = await collect(
+			{
+				messages: [{ role: 'user', content: 'join', timestamp: 1 }],
+				tools: [TOOL],
+			},
+			runtimeWith([thinking, complete, final]),
+			{ apiKey: 'token', sessionId: 'pi-session' },
+			{ strictReconciliation: false, diagnostics: false },
+		);
+		expect(result.stopReason).toBe('toolUse');
+		expect(result.content).toEqual([
+			{
+				type: 'thinking',
+				thinking: 'keep this thinking',
+				thinkingSignature: 'opaque',
+				redacted: true,
+			},
+			{
+				type: 'toolCall',
+				id: 'tool-1',
+				name: TOOL.name,
+				arguments: { left: 'final', right: 'value' },
+			},
+		]);
+		expect(result.diagnostics).toBeUndefined();
 	});
 });

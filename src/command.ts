@@ -1,4 +1,6 @@
 import { stderr } from 'node:process';
+import { openCursorMenu } from '@cursor/menu-panel';
+import { openCursorSettingsPanel } from '@cursor/settings-panel';
 import { loadCursorUsage } from '@cursor/usage';
 import { CursorUsageComponent, createUsageLoads } from '@cursor/usage-panel';
 import { formatCursorUsageSummary } from '@cursor/usage-view';
@@ -11,9 +13,10 @@ import type {
 import type { AutocompleteItem } from '@earendil-works/pi-tui';
 
 const command = 'cursor';
-const usage = 'Usage: /cursor [usage|help]';
+const usage = 'Usage: /cursor [usage|settings|help]. No args opens the action menu.';
 const completions: AutocompleteItem[] = [
 	{ value: 'usage', label: 'usage', description: 'open the Cursor usage pane' },
+	{ value: 'settings', label: 'settings', description: 'configure reconciliation and diagnostics' },
 	{ value: 'help', label: 'help', description: 'show command usage' },
 ];
 
@@ -29,6 +32,8 @@ export interface CursorCommandHost {
 
 export interface CursorCommandDependencies {
 	readonly loadUsage?: typeof loadCursorUsage;
+	readonly openMenu?: typeof openCursorMenu;
+	readonly openSettings?: typeof openCursorSettingsPanel;
 }
 
 export function getCursorCompletions(prefix: string): AutocompleteItem[] | null {
@@ -135,8 +140,23 @@ export async function dispatchCursorCommand(
 	deps: CursorCommandDependencies = {},
 ): Promise<void> {
 	const normalized = args.trim().toLowerCase();
-	if (normalized === '' || normalized === 'usage') {
+	if (normalized === '') {
+		if (ctx.mode !== 'tui') {
+			emitCommandOutput(ctx, usage, 'info');
+			return;
+		}
+		const selected = await (deps.openMenu ?? openCursorMenu)(ctx.ui);
+		if (selected !== undefined) await dispatchCursorCommand(ctx, selected, deps);
+		return;
+	}
+	if (normalized === 'usage') {
 		await showCursorUsage(ctx, deps);
+		return;
+	}
+	if (normalized === 'settings') {
+		await (deps.openSettings ?? openCursorSettingsPanel)(ctx, (message, level) =>
+			emitCommandOutput(ctx, message, level),
+		);
 		return;
 	}
 	if (normalized === 'help') {
@@ -150,7 +170,7 @@ export function registerCursorCommand(
 	pi: Pick<ExtensionAPI, 'registerCommand' | 'sendMessage'>,
 ): void {
 	pi.registerCommand(command, {
-		description: 'Open Cursor account usage and per-model spend',
+		description: 'Open Cursor usage or configure reconciliation and diagnostics',
 		getArgumentCompletions: getCursorCompletions,
 		handler: async (args, ctx) => {
 			await dispatchCursorCommand(

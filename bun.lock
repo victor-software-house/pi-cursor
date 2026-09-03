@@ -4,9 +4,12 @@
   "workspaces": {
     "": {
       "name": "pi-cursor-inference",
+      "dependencies": {
+        "@bufbuild/protobuf": "2.14.1",
+        "ts-pattern": "5.9.0",
+      },
       "devDependencies": {
         "@biomejs/biome": "2.5.11",
-        "@bufbuild/protobuf": "2.14.1",
         "@bufbuild/protoc-gen-es": "2.14.1",
         "@changesets/cli": "3.0.1",
         "@commitlint/cli": "21.2.2",
@@ -16,12 +19,12 @@
         "@earendil-works/pi-tui": "0.84.4",
         "@types/bun": "1.4.0",
         "@types/node": "26.4.0",
+        "@victor-software-house/pi-components": "0.2.17",
         "@victor-software-house/pi-type-kit": "0.0.5",
         "bun-release": "0.0.3",
         "oxlint": "1.80.0",
         "oxlint-tsgolint": "7.0.2001",
         "publint": "0.3.22",
-        "ts-pattern": "5.9.0",
         "tsdown": "0.22.14",
         "typescript": "7.0.2",
       },
@@ -408,6 +411,8 @@
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
     "@typescript/vfs": ["@typescript/vfs@1.6.4", "", { "dependencies": { "debug": "^4.4.3" }, "peerDependencies": { "typescript": "*" } }, "sha512-PJFXFS4ZJKiJ9Qiuix6Dz/OwEIqHD7Dme1UwZhTK11vR+5dqW2ACbdndWQexBzCx+CPuMe5WBYQWCsFyGlQLlQ=="],
+
+    "@victor-software-house/pi-components": ["@victor-software-house/pi-components@0.2.17", "https://npm.pkg.github.com/download/@victor-software-house/pi-components/0.2.17/ca862ddf43e7b4c1bf497af93e1e2384ad5a6eee", { "dependencies": { "ts-pattern": "^5.9.0" }, "peerDependencies": { "@earendil-works/pi-coding-agent": ">=0.84.4", "@earendil-works/pi-tui": ">=0.84.4" } }, "sha512-P5SseD5+bwmR8v/qcoenYro64dm4EYVWpnFXZCdbijey+zHe7IdPUiuSJFIeul+CtviiKPT23BgmqeYqjul/HQ=="],
 
     "@victor-software-house/pi-type-kit": ["@victor-software-house/pi-type-kit@0.0.5", "https://npm.pkg.github.com/download/@victor-software-house/pi-type-kit/0.0.5/0814dbed79f7884b178afa9b48c82bafc7dc1c81", { "dependencies": { "zod": "4.5.0-canary.20260820T155656" } }, "sha512-PyvGpHEs9vlfhLN3UDUhm+h652gnVE4V7ID9MXere6m0Qu0W9nDDxxtmNGdFlaoXafWYWokTddNIoX2qtUq85A=="],
 

@@ -12,9 +12,10 @@ that acts on it.
 
 - One implementation artifact: minified `dist/index.mjs`, no source map, plus the minimal
   declaration for the extension entry. `files` is a whitelist; `pack:verify` enforces it.
-- `@victor-software-house/pi-type-kit` is the sole permitted private build dependency. Import exact
-  named helpers, bundle them, and prove unused modules/package names/source paths are absent from
-  `dist/index.mjs`. Pi peers are the only external runtime imports.
+- `@victor-software-house/pi-type-kit` and `@victor-software-house/pi-components` are the only
+  permitted private build dependencies. Import exact named helpers, bundle them, and prove unused
+  modules/package names/source paths are absent from `dist/index.mjs`. Pi peers are the only
+  external runtime imports.
 - Machine identity is derived from the host with Cursor's algorithm (see decisions). Never read an
   installed IDE, never invent ids silently; the UUID fallback is persisted and reported.
 - Credentials go through Pi's OAuth provider contract. No custom stores.
@@ -28,7 +29,6 @@ that acts on it.
 - Never publish another npm version, create a Version Packages PR, or replace the blank `0.0.0`
   placeholder. Do not resume release work without a new explicit operator decision.
 - Port only provider registration, OAuth login/refresh, host identity, catalog preflight,
-  RunInference request/transport/stream mapping, the `/cursor usage` pane (added 2026-09-02 by
-  operator decision, ported from the private stack's measured implementation), and narrow tests. Do
-  not carry account/database abstractions, multi-account, keychain/1Password support, extraction
-  machinery, or broad protos.
+  RunInference request/transport/stream mapping, the `/cursor` Usage/Settings action menu, usage
+  pane, reconciliation settings, and narrow tests. Do not carry account/database abstractions,
+  multi-account, keychain/1Password support, extraction machinery, or broad protos.

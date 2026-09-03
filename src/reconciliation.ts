@@ -6,6 +6,7 @@ type Content = AssistantMessage['content'];
 
 export interface ReconciliationSummary {
 	readonly responseInfo: boolean;
+	readonly strict: boolean;
 	readonly text: {
 		readonly streamedBlocks: number;
 		readonly finalBlocks: number;
@@ -27,8 +28,12 @@ export interface ReconciliationSummary {
 	readonly tools: {
 		readonly streamed: number;
 		readonly final: number;
-		readonly status: 'none' | 'exact' | 'stream-only' | 'final-only';
+		readonly status: 'none' | 'exact' | 'unchecked' | 'stream-only' | 'final-only';
 	};
+}
+
+export interface ReconciliationOptions {
+	readonly strict?: boolean;
 }
 
 export interface ReconciledContent {
@@ -209,7 +214,12 @@ function compareTools(streamed: readonly ToolCall[], final: readonly ToolCall[])
 	}
 }
 
-export function reconcileFinalContent(streamed: Content, final?: Content): ReconciledContent {
+export function reconcileFinalContent(
+	streamed: Content,
+	final?: Content,
+	options: ReconciliationOptions = {},
+): ReconciledContent {
+	const strict = options.strict ?? true;
 	const streamedText = textBlocks(streamed);
 	const finalText = final === undefined ? [] : textBlocks(final);
 	const streamedThinking = thinkingBlocks(streamed);
@@ -217,8 +227,9 @@ export function reconcileFinalContent(streamed: Content, final?: Content): Recon
 	const streamedTools = toolBlocks(streamed);
 	const finalTools = final === undefined ? [] : toolBlocks(final);
 
-	if (final !== undefined && streamedTools.length > 0) compareTools(streamedTools, finalTools);
-	else {
+	if (strict && final !== undefined && streamedTools.length > 0) {
+		compareTools(streamedTools, finalTools);
+	} else {
 		indexedTools(streamedTools, 'streamed');
 		indexedTools(finalTools, 'final');
 	}
@@ -243,7 +254,9 @@ export function reconcileFinalContent(streamed: Content, final?: Content): Recon
 	const finalThinkingValue = combinedThinking(finalThinking);
 	const toolStatus =
 		streamedTools.length > 0 && finalTools.length > 0
-			? 'exact'
+			? strict
+				? 'exact'
+				: 'unchecked'
 			: streamedTools.length > 0
 				? 'stream-only'
 				: finalTools.length > 0
@@ -254,6 +267,7 @@ export function reconcileFinalContent(streamed: Content, final?: Content): Recon
 		content,
 		summary: {
 			responseInfo: final !== undefined,
+			strict,
 			text: {
 				streamedBlocks: streamedText.length,
 				finalBlocks: finalText.length,

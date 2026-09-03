@@ -7,6 +7,8 @@ import {
 	inferenceRoutingKey,
 } from '@cursor/request';
 import { CursorInferenceMapper } from '@cursor/response';
+import type { CursorSettings } from '@cursor/settings';
+import { getCursorSettings } from '@cursor/settings';
 import type { CursorInferenceRuntime } from '@cursor/transport';
 import type {
 	AssistantMessage,
@@ -24,6 +26,7 @@ export interface CursorStreamRuntime {
 		| Pick<CursorInferenceRuntime, 'invoke'>
 		| ((apiKey: string) => Promise<Pick<CursorInferenceRuntime, 'invoke'>>);
 	readonly createInvocationId?: () => string;
+	readonly settings?: CursorSettings;
 }
 
 function outputFor(model: Model<'cursor-inference'>): AssistantMessage {
@@ -108,6 +111,7 @@ export function streamCursor(
 ): AssistantMessageEventStream {
 	const stream = createAssistantMessageEventStream();
 	const output = outputFor(model);
+	const settings = runtime.settings ?? getCursorSettings();
 
 	void (async () => {
 		try {
@@ -153,6 +157,7 @@ export function streamCursor(
 				output,
 				new Set(context.tools?.map(({ name }) => name) ?? []),
 				invocationId,
+				settings,
 			);
 			const runtimeForToken =
 				typeof runtime.runtime === 'function'

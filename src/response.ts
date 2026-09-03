@@ -14,6 +14,7 @@ import {
 	InferenceStreamErrorType,
 } from '@cursor/gen/aiserver/v1/inference_pb';
 import { reconcileFinalContent } from '@cursor/reconciliation';
+import type { CursorSettings } from '@cursor/settings';
 import type {
 	AssistantMessage,
 	AssistantMessageEventStream,
@@ -124,6 +125,7 @@ export class CursorInferenceMapper {
 	readonly #output: AssistantMessage;
 	readonly #advertisedTools: ReadonlySet<string>;
 	readonly #invocationId: string;
+	readonly #settings: CursorSettings;
 	#text: OpenBlock<TextContent> | undefined;
 	#thinking: OpenBlock<ThinkingContent> | undefined;
 	readonly #tools = new Map<string, OpenTool>();
@@ -140,11 +142,13 @@ export class CursorInferenceMapper {
 		output: AssistantMessage,
 		advertisedTools: ReadonlySet<string>,
 		invocationId: string,
+		settings: CursorSettings,
 	) {
 		this.#stream = stream;
 		this.#output = output;
 		this.#advertisedTools = advertisedTools;
 		this.#invocationId = invocationId;
+		this.#settings = settings;
 	}
 
 	handle(message: RunInferenceServerMessage): void {
@@ -431,29 +435,38 @@ export class CursorInferenceMapper {
 		if (this.#tools.size > 0) {
 			throw new Error('Cursor invocation ended with incomplete tool calls');
 		}
-		const reconciled = reconcileFinalContent(this.#output.content, this.#finalContent);
+		const reconciled = reconcileFinalContent(this.#output.content, this.#finalContent, {
+			strict: this.#settings.strictReconciliation,
+		});
 		this.#output.content.splice(0, this.#output.content.length, ...reconciled.content);
 		const finalizedTools = this.#output.content.filter(({ type }) => type === 'toolCall');
-		if (this.#completedTools.size > 0 && finalizedTools.length === 0) {
+		if (
+			this.#settings.strictReconciliation &&
+			this.#completedTools.size > 0 &&
+			finalizedTools.length === 0
+		) {
 			throw new Error('Cursor toolUse completed without a finalized tool call');
 		}
-		const details: Record<string, unknown> = {
-			arms: Object.fromEntries(this.#responseKinds),
-			reconciliation: reconciled.summary,
-		};
-		if (this.#providerMetadata !== undefined) details['providerMetadata'] = this.#providerMetadata;
-		if (this.#imageDescriptions.length > 0) {
-			details['imageDescriptions'] = this.#imageDescriptions;
+		if (this.#settings.diagnostics) {
+			const details: Record<string, unknown> = {
+				arms: Object.fromEntries(this.#responseKinds),
+				reconciliation: reconciled.summary,
+			};
+			if (this.#providerMetadata !== undefined)
+				details['providerMetadata'] = this.#providerMetadata;
+			if (this.#imageDescriptions.length > 0) {
+				details['imageDescriptions'] = this.#imageDescriptions;
+			}
+			if (this.#responseDetails !== undefined) details['responseInfo'] = this.#responseDetails;
+			this.#output.diagnostics = [
+				...(this.#output.diagnostics ?? []),
+				{
+					type: 'cursor-inference-response',
+					timestamp: Date.now(),
+					details,
+				},
+			];
 		}
-		if (this.#responseDetails !== undefined) details['responseInfo'] = this.#responseDetails;
-		this.#output.diagnostics = [
-			...(this.#output.diagnostics ?? []),
-			{
-				type: 'cursor-inference-response',
-				timestamp: Date.now(),
-				details,
-			},
-		];
 		if (this.#streamError !== undefined) {
 			if (this.#streamError.outputLimit && this.#output.content.length > 0) {
 				return { stopReason: 'length' };

@@ -38,6 +38,19 @@ describe('Cursor final content reconciliation', () => {
 		).toThrow("Cursor final response changed the arguments of tool 'call-1'");
 	});
 
+	test('can accept final tools without equality checks when strict reconciliation is off', () => {
+		const result = reconcileFinalContent(
+			[tool('call-1', 'join', 'streamed')],
+			[tool('call-1', 'join', 'final')],
+			{ strict: false },
+		);
+		expect(result.content).toEqual([tool('call-1', 'join', 'final')]);
+		expect(result.summary).toMatchObject({
+			strict: false,
+			tools: { streamed: 1, final: 1, status: 'unchecked' },
+		});
+	});
+
 	test('accepts final-only tools and preserves stream-only tools when responseInfo is absent', () => {
 		const finalOnly = reconcileFinalContent([], [tool('call-1')]);
 		expect(finalOnly.content).toEqual([tool('call-1')]);

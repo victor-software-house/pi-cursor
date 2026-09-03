@@ -8,8 +8,9 @@ const piPeers = [
 
 /**
  * One published implementation artifact: dist/index.mjs (minified, no source map) plus the entry's
- * declaration. Public runtime libraries and Pi peers stay external package imports. Only the private
- * type-kit build dependency is bundled and tree-shaken out of the consumer dependency graph.
+ * declaration. Public runtime libraries and Pi peers stay external package imports. The private
+ * type-kit and pi-components build dependencies are bundled and tree-shaken out of the consumer
+ * dependency graph.
  */
 export default defineConfig({
 	entry: { index: 'src/index.ts' },
@@ -29,7 +30,7 @@ export default defineConfig({
 	],
 	deps: {
 		neverBundle: piPeers,
-		onlyBundle: ['@victor-software-house/pi-type-kit'],
+		onlyBundle: ['@victor-software-house/pi-components', '@victor-software-house/pi-type-kit'],
 		onlyImport: [...piPeers, '@bufbuild/protobuf', 'ts-pattern'],
 	},
 });

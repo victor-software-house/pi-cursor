@@ -54,23 +54,39 @@ function host(mode: 'tui' | 'rpc' | 'json' | 'print', token: string | null = 'to
 }
 
 describe('/cursor command', () => {
-	test('teaches usage and help through autocomplete', () => {
-		expect(getCursorCompletions('')?.map(({ value }) => value)).toEqual(['usage', 'help']);
+	test('teaches usage, settings, and help through autocomplete', () => {
+		expect(getCursorCompletions('')?.map(({ value }) => value)).toEqual([
+			'usage',
+			'settings',
+			'help',
+		]);
 		expect(getCursorCompletions('u')?.map(({ value }) => value)).toEqual(['usage']);
+		expect(getCursorCompletions('s')?.map(({ value }) => value)).toEqual(['settings']);
 		expect(getCursorCompletions('usage extra')).toBeNull();
 	});
 
-	test('bare /cursor opens the usage pane in TUI mode', async () => {
+	test('bare /cursor opens the action menu and dispatches its selection', async () => {
 		const { ctx, opened } = host('tui');
 		let failure: unknown;
 		try {
-			await dispatchCursorCommand(ctx, '', { loadUsage: async () => ok(usage) });
+			await dispatchCursorCommand(ctx, '', {
+				loadUsage: async () => ok(usage),
+				openMenu: async () => 'usage',
+			});
 		} catch (error) {
 			failure = error;
 		}
 		expect(failure).toBeInstanceOf(Error);
 		expect(failure instanceof Error ? failure.message : '').toBe('pane opened');
 		expect(opened()).toBe(1);
+	});
+
+	test('bare /cursor prints the command shape when no TUI can host the selector', async () => {
+		const { ctx, outputs } = host('print');
+		await dispatchCursorCommand(ctx, '');
+		expect(outputs).toEqual([
+			'Usage: /cursor [usage|settings|help]. No args opens the action menu.\n',
+		]);
 	});
 
 	test('/cursor usage prints the same summary outside the TUI', async () => {
@@ -89,10 +105,36 @@ describe('/cursor command', () => {
 		expect(messages[0]?.level).toEqual({ level: 'info' });
 	});
 
+	test('/cursor settings delegates to the settings surface', async () => {
+		const { ctx } = host('tui');
+		let opened = 0;
+		await dispatchCursorCommand(ctx, 'settings', {
+			openSettings: async () => {
+				opened += 1;
+			},
+		});
+		expect(opened).toBe(1);
+	});
+
+	test('/cursor settings reports defaults outside the TUI', async () => {
+		const { ctx, outputs } = host('print');
+		await dispatchCursorCommand(ctx, 'settings');
+		expect(outputs).toHaveLength(1);
+		expect(outputs[0]).toContain('strict reconciliation: on');
+		expect(outputs[0]).toContain('persist diagnostics: off');
+		expect(outputs[0]).toContain('thinking preservation: always on');
+		expect(outputs[0]).toContain('config:');
+	});
+
 	test('/cursor help uses RPC notifications', async () => {
 		const { ctx, notices } = host('rpc');
 		await dispatchCursorCommand(ctx, 'help');
-		expect(notices).toEqual([{ message: 'Usage: /cursor [usage|help]', level: 'info' }]);
+		expect(notices).toEqual([
+			{
+				message: 'Usage: /cursor [usage|settings|help]. No args opens the action menu.',
+				level: 'info',
+			},
+		]);
 	});
 
 	test('missing auth gives an actionable login instruction', async () => {
@@ -105,6 +147,8 @@ describe('/cursor command', () => {
 		const { ctx, outputs } = host('print');
 		await dispatchCursorCommand(ctx, 'accounts', { loadUsage: async () => ok(usage) });
 		expect(outputs[0]).toContain('Unknown /cursor subcommand: accounts.');
-		expect(outputs[0]).toContain('Usage: /cursor [usage|help]');
+		expect(outputs[0]).toContain(
+			'Usage: /cursor [usage|settings|help]. No args opens the action menu.',
+		);
 	});
 });

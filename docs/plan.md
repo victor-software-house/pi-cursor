@@ -8,7 +8,7 @@ Decisions that govern this plan: [`decisions.md`](decisions.md).
 ## Outcome
 
 The repository contains an installable Pi extension artifact that registers a native `cursor`
-provider and `/cursor` usage command. It uses Cursor's
+provider and `/cursor` Usage/Settings action menu. It uses Cursor's
 `aiserver.v1.InferenceService/RunInference` transport. Cursor supplies inference; Pi owns complete
 context, arbitrary tool schemas, execution, continuation, branching, and transcript.
 
@@ -25,6 +25,7 @@ without a separate operator decision.
 - Catalog-backed context, image/thinking capabilities, and meaningful Max Mode rows.
 - RunInference request, HTTP/2 transport, multiplexing, stream mapping, and tool continuation.
 - Single-account DashboardService usage data and `/cursor` Summary/Models pane.
+- Persisted settings for strict final reconciliation and assistant-message diagnostics.
 - Deterministic unit, protocol, build, packed-loader, and package-shape gates.
 - Bounded local-only live catalog, usage, provider, and visible TUI proof.
 
@@ -63,12 +64,15 @@ src/
   request.ts            Pi Context and arbitrary tools to RunInference messages
   transport.ts          HTTP/2 session, routed runs, invocation multiplexing, shutdown
   stream.ts             RunInference response arms to Pi assistant events
-  reconciliation.ts     strict streamed/final text, reasoning, and tool reconciliation
+  reconciliation.ts     streamed/final text, reasoning, and optional strict tool reconciliation
+  settings.ts           validated owner-only persisted settings and process snapshot
+  menu-panel.ts         pi-components Usage/Settings action selector
+  settings-panel.ts     pi-components reconciliation and diagnostics toggles
   dashboard.ts          measured DashboardService unary transport
   usage.ts              standard/Enterprise usage aggregation and partial misses
   usage-view.ts         unit-correct text, bars, sparklines, and model rows
   usage-panel.ts        keybinding-aware Summary/Models TUI component
-  command.ts            /cursor, /cursor usage, /cursor help
+  command.ts            /cursor menu, /cursor usage, /cursor settings, /cursor help
 proto/
   agent/v1/catalog.proto
   aiserver/v1/catalog.proto
@@ -83,8 +87,10 @@ test/
 ```
 
 The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
-`dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code and
-`@victor-software-house/pi-type-kit` helpers are bundled. Pi peers remain external.
+`dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code,
+`@victor-software-house/pi-type-kit`, and `@victor-software-house/pi-components` helpers are
+bundled. Pi peers remain external. The component package's Node 26 engine governs its unbundled
+package; the emitted extension targets Node 24 and imports only Pi peers at runtime.
 
 ## Completed slices
 
@@ -98,10 +104,13 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
   retries, EOF, and shutdown.
 - Stream mapping preserves thinking text, opaque signatures, final response messages, usage,
   provider metadata, image descriptions, and diagnostics.
-- Final response reconciliation keeps final text/tools authoritative while retaining streamed
+- Final response assembly keeps final text/tools authoritative while always retaining streamed
   thinking when final reasoning contains only redacted or signature metadata.
-- Completed streamed tools must match final tools by ID, name, and deep-equal arguments. Text
-  differences produce payload-free structural diagnostics rather than prefix matching or warnings.
+- Strict reconciliation defaults on and requires completed streamed tools to match final tools by
+  ID, name, and deep-equal arguments. Operators can disable only these cross-copy equality checks.
+- The text/reasoning reconciliation census is payload-free and persisted only when diagnostics are
+  explicitly enabled. The opt-in diagnostic can also retain provider side-channel metadata;
+  diagnostics default off and add nothing to assistant messages.
 - Multi-block reasoning metadata matches by exact signature or exact text. Only a single unmatched
   metadata block and single unmatched text block may merge by cardinality; every other unmatched
   metadata block remains separate.
@@ -124,10 +133,11 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
 - Catalog-selected context parameters flow into both the requested model and routing key.
 - Unmatched families retain conservative 200k fallback metadata.
 
-### 4. `/cursor` usage surface
+### 4. `/cursor` operator surface
 
-- `/cursor` and `/cursor usage` open the single-account usage surface; `/cursor help` prints the
-  compact command shape.
+- Bare `/cursor` opens a bundled pi-components selector with Usage and Settings actions.
+- `/cursor usage` opens the single-account usage surface; `/cursor settings` persists strict
+  reconciliation and diagnostic toggles; `/cursor help` prints the compact command shape.
 - TUI mode provides Summary/Models, Tab switching, `r` refresh, configured cancel handling, and
   `q` close.
 - Outside TUI mode, print writes plain text, JSON emits a custom message event, and RPC uses a
@@ -141,8 +151,8 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
 `mise run verify` passes with:
 
 - Biome, oxlint, actionlint, and TypeScript;
-- 95 unit tests with one explicit host-only identity test skipped;
-- a minified 89.34 kB ESM bundle plus entry declaration;
+- 105 unit tests with one explicit host-only identity test skipped;
+- a minified 98.64 kB ESM bundle plus entry declaration;
 - publint and exact tarball whitelist checks;
 - forbidden package/path/source-map scans and bundle-size limits;
 - extracted-artifact imports under Node and Bun, each with a five-second process guard;
@@ -160,7 +170,8 @@ passed:
 - one bounded Composer 2.5 production RunInference response with a 256-token output cap;
 - a bounded `default` router response whose non-empty streamed thinking remains in the finalized
   assistant message;
-- every live inference result asserting the runtime's structural reconciliation diagnostic;
+- every live inference result explicitly enabling and asserting the runtime's structural
+  reconciliation census inside the response diagnostic;
 - a paid arbitrary-tool turn whose completed streamed/final tools match exactly before its local
   result continues on the same routed run;
 - an isolated visible Pi TUI in a Herdr pane showing live Enterprise Summary and Models views;
