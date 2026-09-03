@@ -1,8 +1,8 @@
 # pi-cursor-inference
 
-> ▲ **Release candidate, not published.** The repository and package remain private. The public
-> `pi-cursor-inference@0.0.0` package is still a blank name reservation and does not contain this
-> provider.
+> ▲ **Release candidate, not published.** The repository remains private and this source package
+> remains marked private. The public `pi-cursor-inference@0.0.0` package is still a blank name
+> reservation and does not contain this provider.
 
 This repository implements Cursor as an unofficial plain inference provider for
 [Pi](https://github.com/earendil-works/pi-mono) over
