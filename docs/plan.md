@@ -1,8 +1,8 @@
 # pi-cursor release-readiness plan
 
-> **Status:** `pi-cursor-inference@0.0.1` released 2026-09-03 with runtime, install, tag,
-> GitHub Release, and pi.dev discovery verified. The operator authorized a `0.0.2` presentation
-> correction: a native 4K 16:9 gallery composition and absolute packaged-README documentation links.
+> **Status:** `pi-cursor-inference@0.0.2` released 2026-09-03. npm integrity, exact tag and
+> GitHub Release, clean Pi installation, corrected README links, and pi.dev's native 4K 16:9
+> gallery rendering are verified.
 
 Decisions that govern this plan: [`decisions.md`](decisions.md).
 
@@ -214,15 +214,27 @@ Completed for `0.0.1`:
 6. `https://pi.dev/packages/pi-cursor-inference` classifies `0.0.1` as an extension, renders the
    gallery image, exposes the install command, and displays the exact `pi` manifest.
 
-The published `0.0.1` README's final relative links resolve through jsDelivr to `docs/plan.md` and
-`docs/decisions.md`, which the package intentionally does not ship, so both return 404. Main now
-uses absolute GitHub links. npm versions are immutable; the authorized `0.0.2` patch changeset
-carries that correction together with the fixed 4K 16:9 gallery image. Runtime and installation are
-unchanged.
+Completed for `0.0.2`:
 
-The npm packument does not expose a `dist.attestations` field for `0.0.1`. The workflow log proves
-trusted-publisher OIDC token minting and successful publication, but Bun 1.4 did not emit a separate
-npm provenance attestation. Do not claim one exists.
+1. Version Packages PR [#2](https://github.com/victor-software-house/pi-cursor/pull/2) contained
+   only the consumed changeset, `CHANGELOG.md`, and the `0.0.2` manifest bump; its CI passed and it
+   merged at `c06db4a400ec2c9cd507f7707e5d0a712dfe3bf0`.
+2. npm accepted the OIDC-authenticated Bun publication while its package-publishing service was
+   degraded, but registry visibility exceeded the workflow's 90-second wait. After npm exposed the
+   accepted version, the exact-run retry skipped publication and created `v0.0.2` plus its GitHub
+   Release at the version commit.
+3. The independently downloaded tarball matches npm's SHA-512 integrity, and a clean
+   `pi install npm:pi-cursor-inference@0.0.2` installs the exact version and extension manifest.
+4. pi.dev displays `0.0.2`, resolves the implementation links to GitHub, and renders the
+   `3840×2160` gallery image at its exact 16:9 card size without cropping.
+
+The immutable published `0.0.1` README's final relative links resolve through jsDelivr to omitted
+files and return 404. `0.0.2` replaces them with absolute GitHub links and carries the corrected 4K
+16:9 gallery image. Runtime behavior is unchanged.
+
+The npm packument does not expose a `dist.attestations` field for these Bun 1.4 publications. The
+workflow logs prove trusted-publisher OIDC token minting and successful publication, but do not
+claim a separate npm provenance attestation.
 
 ## Known boundaries
 

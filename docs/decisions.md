@@ -1,7 +1,8 @@
 # pi-cursor decisions
 
-> **Status:** `pi-cursor-inference@0.0.1` released 2026-09-03. The npm package, exact tag and
-> GitHub Release, clean Pi install, visible live inference, and pi.dev gallery listing are verified.
+> **Status:** `pi-cursor-inference@0.0.2` released 2026-09-03. npm integrity, exact tag and GitHub
+> Release, clean Pi installation, corrected README links, and pi.dev's native 4K 16:9 gallery
+> rendering are verified.
 
 > Earlier decisions below are chronological. Later entries explicitly supersede earlier scope or
 > evidence decisions.
@@ -51,3 +52,4 @@
 - 2026-09-03 npm's `0.0.1` packument has no `dist.attestations` field and the package page shows no provenance badge. The release did use the configured trusted publisher: `release.yml` successfully minted the npm OIDC token immediately before Bun published. Record OIDC authentication and registry integrity as proven, but do not claim Bun 1.4 emitted a separate npm provenance attestation.
 - 2026-09-03 The initial `pi.image` reused the 1200×240 README banner, but pi.dev renders package media at 232×129.625 with `object-fit: cover`; the 5:1 source was cropped to its center and showed the wrong composition. The gallery asset is now a dedicated 3840×2160 full-bleed image on a 1200×675 vector design grid: centred Quarter Turn mark, wordmark, exact subtitle, and usage chip in a balanced vertical stack designed and inspected at the actual 232×130 card size. Only the 16:9 proportion and a 4K minimum are constrained; higher resolutions are allowed. `docs/gallery.svg` is the repository-only outlined source; `docs/gallery.png` is the external image URL and package asset. The README banners remain unchanged.
 - 2026-09-03 The operator explicitly requested correcting the published gallery proportions and approved returning to Claude Code for the final spacing pass. This is a user-visible package presentation fix, so it carries a patch changeset for `0.0.2`; that release also carries the already-corrected absolute README documentation links. The npm `0.0.1` runtime remains valid.
+- 2026-09-03 `pi-cursor-inference@0.0.2` is published. Version Packages PR #2 contained only its consumed changeset, changelog, and manifest bump, passed CI, and merged at `c06db4a400ec2c9cd507f7707e5d0a712dfe3bf0`. npm accepted the OIDC-authenticated Bun publication during its “Intermittent Failures Impacting npm Publish” incident, but registry visibility exceeded the workflow's 90-second wait. Once npm exposed the accepted version, an idempotent exact-run retry skipped publication and created `v0.0.2` plus its GitHub Release at the version commit. The independently downloaded tarball matches npm's SHA-512 integrity, and a clean Pi agent directory installed the exact version. pi.dev now displays `0.0.2`, resolves the corrected documentation links to GitHub, and renders the `3840×2160` image at its 16:9 card size without cropping. Runtime behavior is unchanged.
