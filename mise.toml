@@ -130,7 +130,7 @@ run = "changeset status --since=origin/main"
 
 [tasks.version]
 description = "Generate Changesets version PR changes"
-run = ["changeset version", "bun update --lockfile-only"]
+run = ["changeset version", "bun install --lockfile-only"]
 
 [tasks."lockfile:sync"]
 description = "Verify bun.lock matches package.json"
