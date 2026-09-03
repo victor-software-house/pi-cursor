@@ -26,6 +26,11 @@
 	},
 	"files": [
 		"dist",
+		"docs/banner.svg",
+		"docs/banner-dark.svg",
+		"docs/mark.svg",
+		"docs/mark-dark.svg",
+		"docs/brand.md",
 		"README.md",
 		"CHANGELOG.md",
 		"LICENSE"

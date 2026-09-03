@@ -24,9 +24,25 @@ const allowed = new Set([
 	'package/README.md',
 	'package/CHANGELOG.md',
 	'package/LICENSE',
+	'package/docs/banner.svg',
+	'package/docs/banner-dark.svg',
+	'package/docs/mark.svg',
+	'package/docs/mark-dark.svg',
+	'package/docs/brand.md',
 	'package/dist/index.mjs',
 	'package/dist/index.d.mts',
 ]);
+
+const requiredBrandAssets = [
+	'package/docs/banner.svg',
+	'package/docs/banner-dark.svg',
+	'package/docs/mark.svg',
+	'package/docs/mark-dark.svg',
+	'package/docs/brand.md',
+] as const;
+const requiredBrandSvgs = requiredBrandAssets.filter((asset) => asset.endsWith('.svg'));
+const forbiddenInBrandSvg =
+	/<text|<script|<image|<metadata|font-family|@font-face|data:image|\/Users\/|\/home\//u;
 
 const forbiddenInBundle: readonly RegExp[] = [
 	/sourceMappingURL/u,
@@ -210,9 +226,32 @@ try {
 				failures.push(`pi.extensions entry missing from tarball: ${expected}`);
 			}
 		}
+		for (const asset of requiredBrandAssets) {
+			if (!entries.includes(asset)) failures.push(`brand asset missing from tarball: ${asset}`);
+		}
 		await $`tar xzf ${tarballPath} -C ${workDir}`.quiet();
 		const packageRoot = join(workDir, 'package');
 		const bundlePath = join(packageRoot, 'dist', 'index.mjs');
+		const readme = await Bun.file(join(packageRoot, 'README.md')).text();
+		if (!readme.includes('docs/banner.svg') || !readme.includes('docs/banner-dark.svg')) {
+			failures.push('packed README does not reference both light and dark banners');
+		}
+		for (const asset of requiredBrandSvgs) {
+			const svg = await Bun.file(join(workDir, asset)).text();
+			if (forbiddenInBrandSvg.test(svg)) failures.push(`brand SVG has forbidden content: ${asset}`);
+			if (!/<svg\b[^>]*role="img"[^>]*aria-label="[^"]+"/u.test(svg)) {
+				failures.push(`brand SVG has no accessible image label: ${asset}`);
+			}
+			if (
+				asset.includes('banner') &&
+				(!svg.includes('width="1200" height="240"') || !svg.includes('viewBox="0 0 1200 240"'))
+			) {
+				failures.push(`banner SVG has unexpected dimensions: ${asset}`);
+			}
+			if (asset.includes('mark') && !svg.includes('viewBox="0 0 32 32"')) {
+				failures.push(`mark SVG has unexpected dimensions: ${asset}`);
+			}
+		}
 		symlinkSync(join(root, 'node_modules'), join(packageRoot, 'node_modules'), 'dir');
 		await Promise.all([
 			checkImport('node', bundlePath),

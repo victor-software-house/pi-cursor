@@ -1,5 +1,10 @@
 # pi-cursor-inference
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.svg">
+  <img src="docs/banner.svg" alt="pi-cursor — /cursor in Pi · unofficial routed Cursor inference">
+</picture>
+
 > ▲ **Release candidate, not published.** The repository remains private and this source package
 > remains marked private. The public `pi-cursor-inference@0.0.0` package is still a blank name
 > reservation and does not contain this provider.

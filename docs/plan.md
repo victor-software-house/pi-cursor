@@ -86,8 +86,8 @@ test/
   live/                 credential- and CI-gated catalog, usage, and provider checks
 ```
 
-The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
-`dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code,
+The published whitelist is `package.json`, README, CHANGELOG, LICENSE, the paired Quarter Turn
+banners/marks plus `docs/brand.md`, `dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code,
 `@victor-software-house/pi-type-kit`, and `@victor-software-house/pi-components` helpers are
 bundled. Pi peers remain external. The component package's Node 26 engine governs its unbundled
 package; the emitted extension targets Node 24 and imports only Pi peers at runtime.
