@@ -135,6 +135,50 @@ describe('managed inference request', () => {
 		});
 	});
 
+	test('preserves the originating Cursor model on reasoning replay across model switches', () => {
+		const request = buildInferenceRequest({
+			messages: [
+				{
+					role: 'assistant',
+					api: 'cursor-inference',
+					provider: 'cursor',
+					model: 'cursor-grok-4.6',
+					responseModel: 'cursor-grok-4.6-high',
+					content: [
+						{
+							type: 'thinking',
+							thinking: '',
+							thinkingSignature: 'opaque-grok-reasoning',
+						},
+						{ type: 'text', text: 'answer' },
+					],
+					usage: {
+						input: 0,
+						output: 0,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 0,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
+					stopReason: 'stop',
+					timestamp: 1,
+				},
+			],
+		});
+		expect(toJson(InferenceStreamRequestSchema, request)).toMatchObject({
+			messages: [
+				{
+					reasoningParts: [
+						{
+							signature: 'opaque-grok-reasoning',
+							modelName: 'cursor-grok-4.6-high',
+						},
+					],
+				},
+			],
+		});
+	});
+
 	test('builds text-only routing on the stable Pi session identity', () => {
 		const run = buildInferenceRunRequest(MODEL, assistantContext(), 'pi-session', undefined);
 		const json = toJson(RunInferenceRunRequestSchema, run);

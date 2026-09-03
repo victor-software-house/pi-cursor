@@ -114,6 +114,7 @@ export function messageToInference(message: Message): InferenceCoreMessage {
 							text: part.thinking,
 							signature: part.redacted === true ? undefined : part.thinkingSignature,
 							redactedData: part.redacted === true ? part.thinkingSignature : undefined,
+							modelName: message.provider === 'cursor' ? message.responseModel : undefined,
 						}),
 					),
 				);
