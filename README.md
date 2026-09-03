@@ -21,6 +21,8 @@ implementation. Enabling the first functional release requires a separate operat
   when Cursor advertises a meaningful variant difference.
 - Streaming thinking text when the provider supplies it, opaque reasoning signatures, text,
   usage, generic tool-call argument deltas, and tool continuations.
+- Final response reconciliation preserves routed thinking text when Cursor's final message carries
+  only redacted or signature-only reasoning metadata.
 - `/cursor` and `/cursor usage` account usage pane with Summary and Models views.
 
 ## Usage pane
@@ -45,7 +47,7 @@ captured context parameter automatically. Advanced callers may override the Curs
 ## Verification
 
 `mise run verify` is the deterministic gate. It runs formatting/lint checks, TypeScript checking,
-85 unit tests, the minified build, publint, the package whitelist, Node and Bun imports of the
+87 unit tests, the minified build, publint, the package whitelist, Node and Bun imports of the
 extracted tarball, and Pi's real extension loader. The loader proof requires the packed artifact to
 register `/cursor` and exactly one native `cursor` provider. Packed CLI checks also require
 `/cursor help` to emit plain text in print mode and a custom message event in JSON mode.

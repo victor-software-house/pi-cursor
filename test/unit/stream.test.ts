@@ -14,6 +14,7 @@ import {
 	InferenceStreamErrorType,
 	InferenceStreamResponseSchema,
 	InferenceTextStreamPartSchema,
+	InferenceThinkingStreamPartSchema,
 	InferenceToolCallStreamPartSchema,
 	RunInferenceInvocationEndSchema,
 	RunInferenceInvocationResponseSchema,
@@ -247,6 +248,97 @@ describe('managed inference Pi stream', () => {
 				},
 			],
 		});
+	});
+
+	test('preserves streamed thinking when final responseInfo has signature-only reasoning', async () => {
+		const { result } = await collect(
+			{ messages: [{ role: 'user', content: 'reason', timestamp: 1 }] },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'thinkingPart',
+						value: create(InferenceThinkingStreamPartSchema, {
+							text: 'streamed analysis',
+							isFinal: true,
+						}),
+					},
+				}),
+				response('ignored', {
+					response: {
+						case: 'textPart',
+						value: create(InferenceTextStreamPartSchema, {
+							text: 'draft answer',
+							isFinal: true,
+						}),
+					},
+				}),
+				response('ignored', {
+					response: {
+						case: 'responseInfo',
+						value: create(InferenceResponseInfoSchema, {
+							messages: [
+								create(InferenceResponseMessageSchema, {
+									role: InferenceMessageRole.ASSISTANT,
+									content: 'final answer',
+									reasoningParts: [
+										create(InferenceReasoningPartSchema, {
+											isRedacted: true,
+											redactedData: 'final-signature',
+										}),
+									],
+								}),
+							],
+						}),
+					},
+				}),
+			]),
+		);
+		expect(result.content).toEqual([
+			{
+				type: 'thinking',
+				thinking: 'streamed analysis',
+				thinkingSignature: 'final-signature',
+				redacted: true,
+			},
+			{ type: 'text', text: 'final answer' },
+		]);
+	});
+
+	test('keeps non-empty final reasoning authoritative over streamed thinking', async () => {
+		const { result } = await collect(
+			{ messages: [{ role: 'user', content: 'reason', timestamp: 1 }] },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'thinkingPart',
+						value: create(InferenceThinkingStreamPartSchema, {
+							text: 'draft analysis',
+							isFinal: true,
+						}),
+					},
+				}),
+				response('ignored', {
+					response: {
+						case: 'responseInfo',
+						value: create(InferenceResponseInfoSchema, {
+							messages: [
+								create(InferenceResponseMessageSchema, {
+									role: InferenceMessageRole.ASSISTANT,
+									content: 'final answer',
+									reasoningParts: [
+										create(InferenceReasoningPartSchema, { text: 'final analysis' }),
+									],
+								}),
+							],
+						}),
+					},
+				}),
+			]),
+		);
+		expect(result.content).toEqual([
+			{ type: 'thinking', thinking: 'final analysis' },
+			{ type: 'text', text: 'final answer' },
+		]);
 	});
 
 	test('streams text and gives extended usage precedence', async () => {

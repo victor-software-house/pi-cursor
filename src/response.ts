@@ -117,6 +117,31 @@ function errorMessage(
 	return message;
 }
 
+function mergeFinalContent(
+	streamed: AssistantMessage['content'],
+	final: AssistantMessage['content'],
+): AssistantMessage['content'] {
+	const finalThinking = final.filter((block) => block.type === 'thinking');
+	if (finalThinking.some((block) => block.thinking.trim() !== '')) return final;
+	const streamedThinking = streamed.filter(
+		(block): block is ThinkingContent => block.type === 'thinking' && block.thinking.trim() !== '',
+	);
+	if (streamedThinking.length === 0) return final;
+	const mergedThinking = streamedThinking.map((block, index) => {
+		const metadata = finalThinking[index];
+		return metadata === undefined
+			? block
+			: {
+					...block,
+					...omitUndefined({
+						thinkingSignature: metadata.thinkingSignature,
+						redacted: metadata.redacted,
+					}),
+				};
+	});
+	return [...mergedThinking, ...final.filter((block) => block.type !== 'thinking')];
+}
+
 /** Maps one correlated managed invocation onto Pi's provider event contract. */
 export class CursorInferenceMapper {
 	readonly #stream: AssistantMessageEventStream;
@@ -435,7 +460,8 @@ export class CursorInferenceMapper {
 			throw new Error('Cursor invocation ended with incomplete tool calls');
 		}
 		if (this.#finalContent !== undefined) {
-			this.#output.content.splice(0, this.#output.content.length, ...this.#finalContent);
+			const merged = mergeFinalContent(this.#output.content, this.#finalContent);
+			this.#output.content.splice(0, this.#output.content.length, ...merged);
 		}
 		const details: Record<string, unknown> = {
 			arms: Object.fromEntries(this.#responseKinds),

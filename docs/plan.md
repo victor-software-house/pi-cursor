@@ -97,6 +97,8 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
   retries, EOF, and shutdown.
 - Stream mapping preserves thinking text, opaque signatures, final response messages, usage,
   provider metadata, image descriptions, and diagnostics.
+- Final response reconciliation keeps final text/tools authoritative while retaining streamed
+  thinking when final reasoning contains only redacted or signature metadata.
 
 ### 2. OAuth and provider registration
 
@@ -133,8 +135,8 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
 `mise run verify` passes with:
 
 - Biome, oxlint, actionlint, and TypeScript;
-- 85 unit tests with one explicit host-only identity test skipped;
-- a minified 85.71 kB ESM bundle plus entry declaration;
+- 87 unit tests with one explicit host-only identity test skipped;
+- a minified 86.09 kB ESM bundle plus entry declaration;
 - publint and exact tarball whitelist checks;
 - forbidden package/path/source-map scans and bundle-size limits;
 - extracted-artifact imports under Node and Bun, each with a five-second process guard;
@@ -150,6 +152,8 @@ passed:
 - all three live catalog calls and selectable-model construction;
 - live DashboardService usage shape without printing account values from the test;
 - one bounded Composer 2.5 production RunInference response with a 256-token output cap;
+- a bounded `default` router response whose non-empty streamed thinking remains in the finalized
+  assistant message;
 - an isolated visible Pi TUI in a Herdr pane showing live Enterprise Summary and Models views;
 - Tab switching and `q` close;
 - visible partial-failure handling when one aggregate sample timed out.

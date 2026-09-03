@@ -23,17 +23,33 @@ const model: Model<'cursor-inference'> = {
 	maxTokens: 64_000,
 };
 
+const defaultModel: Model<'cursor-inference'> = {
+	...model,
+	id: 'default',
+	name: 'Auto',
+};
+
+async function liveRuntime(accessToken: string): Promise<{
+	readonly runtime: CursorInferenceRuntime;
+	readonly agentDir: string;
+}> {
+	const agentDir = await mkdtemp(join(tmpdir(), 'pi-cursor-live-'));
+	const identity = await loadCursorMachineIdentity(agentDir);
+	return {
+		agentDir,
+		runtime: new CursorInferenceRuntime({
+			backendUrl: model.baseUrl,
+			token: accessToken,
+			ghostMode: false,
+			identity,
+		}),
+	};
+}
+
 describe.skipIf(skip)('Cursor managed inference live', () => {
 	test('streams a bounded Composer response over the production transport', async () => {
 		if (token === undefined || token === '') throw new Error('PI_CURSOR_TOKEN is required');
-		const agentDir = await mkdtemp(join(tmpdir(), 'pi-cursor-live-'));
-		const identity = await loadCursorMachineIdentity(agentDir);
-		const runtime = new CursorInferenceRuntime({
-			backendUrl: model.baseUrl,
-			token,
-			ghostMode: false,
-			identity,
-		});
+		const { agentDir, runtime } = await liveRuntime(token);
 		try {
 			const stream = streamCursor(
 				model,
@@ -61,6 +77,46 @@ describe.skipIf(skip)('Cursor managed inference live', () => {
 			expect(
 				result.content.some((block) => block.type === 'text' && block.text.trim().length > 0),
 			).toBe(true);
+		} finally {
+			await runtime.shutdown();
+			await rm(agentDir, { recursive: true, force: true });
+		}
+	}, 120_000);
+
+	test('keeps routed default thinking in the finalized message', async () => {
+		if (token === undefined || token === '') throw new Error('PI_CURSOR_TOKEN is required');
+		const { agentDir, runtime } = await liveRuntime(token);
+		try {
+			const stream = streamCursor(
+				defaultModel,
+				{
+					messages: [
+						{
+							role: 'user',
+							content:
+								'Analyze whether every integer whose square is divisible by 12 must itself be divisible by 6. Explain briefly.',
+							timestamp: Date.now(),
+						},
+					],
+				},
+				{ runtime },
+				{
+					apiKey: token,
+					sessionId: `pi-cursor-default-live-${crypto.randomUUID()}`,
+					maxTokens: 1_024,
+				},
+			);
+			let streamedThinking = '';
+			for await (const event of stream) {
+				if (event.type === 'thinking_delta') streamedThinking += event.delta;
+			}
+			const result = await stream.result();
+			const finalThinking = result.content
+				.filter((block) => block.type === 'thinking')
+				.map((block) => block.thinking)
+				.join('');
+			expect(streamedThinking.trim().length).toBeGreaterThan(0);
+			expect(finalThinking).toContain(streamedThinking);
 		} finally {
 			await runtime.shutdown();
 			await rm(agentDir, { recursive: true, force: true });
