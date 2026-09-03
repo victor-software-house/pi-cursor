@@ -1,6 +1,8 @@
 # pi-cursor release-readiness plan
 
-> **Status:** Implementation, release-candidate proof, and public-history privacy audit completed 2026-09-03. The GitHub repository is public. npm publication remains disabled until the operator explicitly authorizes it.
+> **Status:** Implementation, release-candidate proof, public-history privacy audit, and repository
+> visibility are complete. The operator authorized `0.0.1` on 2026-09-03; the Changesets/OIDC
+> release path is being enabled and remains incomplete until exact installed-artifact verification.
 
 Decisions that govern this plan: [`decisions.md`](decisions.md).
 
@@ -11,11 +13,11 @@ provider and `/cursor` Usage/Settings action menu. It uses Cursor's
 `aiserver.v1.InferenceService/RunInference` transport. Cursor supplies inference; Pi owns complete
 context, arbitrary tool schemas, execution, continuation, branching, and transcript.
 
-The functional implementation is not the public npm package yet. The existing
-`pi-cursor-inference@0.0.0` is a blank name reservation. The repository's reachable history passed
+The functional implementation begins with `pi-cursor-inference@0.0.1`; the existing `0.0.0` is a
+blank name reservation. The repository's reachable history passed
 [`public-history-audit-2026-09-03.md`](public-history-audit-2026-09-03.md) before visibility changed
-to public. `package.json` stays `private: true`, and no release workflow or functional npm version is
-created without a separate operator decision.
+to public. Versioning, changelog generation, npm OIDC publication, tags, and GitHub Releases are
+owned by Changesets and the main-branch release workflow.
 
 ## Scope
 
@@ -87,7 +89,7 @@ test/
 ```
 
 The published whitelist is `package.json`, README, CHANGELOG, LICENSE, the paired Quarter Turn
-banners/marks plus `docs/brand.md`, `dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code,
+banners/marks, static Pi gallery PNG, `docs/brand.md`, `dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code,
 `@victor-software-house/pi-type-kit`, and `@victor-software-house/pi-components` helpers are
 bundled. Pi peers remain external. The component package's Node 26 engine governs its unbundled
 package; the emitted extension targets Node 24 and imports only Pi peers at runtime.
@@ -180,23 +182,21 @@ passed:
 
 The temporary token, Ego Browser task space, and Herdr test pane were removed afterward.
 
-## Remaining publication gates
+## Release execution gates
 
-The repository-visibility gate is complete. These npm release steps remain intentionally unstarted
-and require an explicit operator decision:
+The visibility and authorization gates are complete. The remaining ordered proof is:
 
-1. Authorize the first functional public release and remove `private: true` in the same
-   release-enablement change.
-2. Add and review the npm OIDC/Changesets release workflow; configure npm trusted publishing for
-   that exact workflow.
-3. Add a patch Changeset for the first functional `0.0.1` release. Do not alter the existing blank
-   `0.0.0` package manually.
-4. Merge the generated Version Packages PR only after its current head passes CI and package gates.
-5. Let CI publish `0.0.1`; do not publish, tag, or edit changelogs from a terminal.
-6. In a clean agent directory, install the exact npm version, run `/login cursor`, confirm the
-   provider catalog and `/cursor` pane, and perform one bounded Composer response.
-7. Verify npm metadata, tag target, GitHub Release, and exact-version Node/Bun load before calling
-   the release complete.
+1. Merge the release-enablement change with the patch changeset after CI and package gates pass.
+2. Verify the Version Packages App opens an independently green `0.0.1` PR.
+3. Configure or verify npm trusted publishing for this repository's `release.yml` with publish
+   permission.
+4. Merge the exact green Version Packages PR and let Actions publish, tag, and create the GitHub
+   Release.
+5. In a clean agent directory, install `npm:pi-cursor-inference@0.0.1`, confirm the provider,
+   `/cursor` pane, and gallery metadata, then perform one bounded Composer response after fresh
+   OAuth if required.
+6. Verify npm metadata/provenance, the `v0.0.1` tag target, GitHub Release, pi.dev package listing,
+   and exact-version Node/Bun loads before calling the release complete.
 
 ## Known boundaries
 

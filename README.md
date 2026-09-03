@@ -5,18 +5,33 @@
   <img src="docs/banner.svg" alt="pi-cursor — /cursor in Pi · unofficial routed Cursor inference">
 </picture>
 
-> ▲ **Public release candidate, not published.** The repository history passed the
-> [pre-publication privacy audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/public-history-audit-2026-09-03.md). This source package
-> remains marked private, and the public `pi-cursor-inference@0.0.0` package is still a blank name
-> reservation that does not contain this provider.
-
-This repository implements Cursor as an unofficial plain inference provider for
+This package implements Cursor as an unofficial plain inference provider for
 [Pi](https://github.com/earendil-works/pi-mono) over
 `aiserver.v1.InferenceService/RunInference`. Cursor supplies inference while Pi owns the complete
 conversation, arbitrary tool schemas, tool execution, branching, and transcript.
 
-Publication is intentionally disabled. Do not install the `0.0.0` npm placeholder expecting this
-implementation. Enabling the first functional release requires a separate operator decision.
+## Install
+
+```sh
+pi install npm:pi-cursor-inference
+```
+
+Then authenticate and select a Cursor model:
+
+```text
+/login cursor
+/model
+```
+
+To evaluate the extension without adding it to settings:
+
+```sh
+pi -e npm:pi-cursor-inference
+```
+
+Pi packages execute with full local access. Review this repository before installation. The
+[pre-publication privacy audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/public-history-audit-2026-09-03.md)
+records the complete history review performed before the repository became public.
 
 ## Features
 
@@ -113,8 +128,6 @@ not claimed.
 - No multi-account database, keychain/1Password reader, or installed-IDE dependency.
 - No invented Grok thinking summary: current RunInference measurements provide an opaque
   continuation signature but no reasoning text for Grok 4.6.
-- No publication workflow, public-repository transition, version bump, or npm publish without a
-  new operator decision.
 
-See [`docs/plan.md`](docs/plan.md) for completed slices and remaining publication gates, and
+See [`docs/plan.md`](docs/plan.md) for the implementation and verification record, and
 [`docs/decisions.md`](docs/decisions.md) for protocol and scope decisions.

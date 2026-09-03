@@ -15,6 +15,7 @@ isometric geometry, and it must stay that way.
 | [`mark-dark.svg`](mark-dark.svg) | Same geometry, graphite field. |
 | [`banner.svg`](banner.svg) | README header, 1200×240. |
 | [`banner-dark.svg`](banner-dark.svg) | Same, graphite field. |
+| [`gallery.png`](gallery.png) | Static 1200×240 package-gallery preview, rendered from the light banner. |
 
 Pair the two fields with `<picture>` and `prefers-color-scheme`. **Never recolour a single file at
 the call site**, and never scale the mark to supply padding — see [Construction](#construction).

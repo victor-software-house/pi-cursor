@@ -1,6 +1,12 @@
 {
 	"$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
-	"changelog": false,
+	"changelog": [
+		"./changelog.ts",
+		{
+			"repo": "victor-software-house/pi-cursor",
+			"internalAuthors": ["any-victor"]
+		}
+	],
 	"commit": false,
 	"fixed": [],
 	"linked": [],

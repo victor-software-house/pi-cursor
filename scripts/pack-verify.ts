@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { exit, stderr } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import { pi } from '@repo/package.json' with { type: 'json' };
+import { keywords, pi } from '@repo/package.json' with { type: 'json' };
 import { isRecord } from '@victor-software-house/pi-type-kit';
 import { $ } from 'bun';
 
@@ -29,6 +29,7 @@ const allowed = new Set([
 	'package/docs/mark.svg',
 	'package/docs/mark-dark.svg',
 	'package/docs/brand.md',
+	'package/docs/gallery.png',
 	'package/dist/index.mjs',
 	'package/dist/index.d.mts',
 ]);
@@ -39,6 +40,7 @@ const requiredBrandAssets = [
 	'package/docs/mark.svg',
 	'package/docs/mark-dark.svg',
 	'package/docs/brand.md',
+	'package/docs/gallery.png',
 ] as const;
 const requiredBrandSvgs = requiredBrandAssets.filter((asset) => asset.endsWith('.svg'));
 const forbiddenInBrandSvg =
@@ -211,6 +213,13 @@ async function checkPiCommandModes(bundlePath: string, agentDir: string): Promis
 }
 
 try {
+	if (!keywords.includes('pi-package')) failures.push('package is missing the pi-package keyword');
+	if (
+		pi.image !==
+		'https://raw.githubusercontent.com/victor-software-house/pi-cursor/main/docs/gallery.png'
+	) {
+		failures.push('pi.image does not point at the stable public gallery PNG');
+	}
 	await $`bun pm pack --destination ${workDir} --quiet`.quiet();
 	const tarballs = [...new Bun.Glob('*.tgz').scanSync(workDir)];
 	const tarball = tarballs[0];
@@ -256,6 +265,16 @@ try {
 			if (asset.includes('mark') && !svg.includes('viewBox="0 0 32 32"')) {
 				failures.push(`mark SVG has unexpected dimensions: ${asset}`);
 			}
+		}
+		const gallery = Buffer.from(
+			await Bun.file(join(packageRoot, 'docs', 'gallery.png')).arrayBuffer(),
+		);
+		if (
+			gallery.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||
+			gallery.readUInt32BE(16) !== 1_200 ||
+			gallery.readUInt32BE(20) !== 240
+		) {
+			failures.push('gallery preview is not a 1200x240 PNG');
 		}
 		symlinkSync(join(root, 'node_modules'), join(packageRoot, 'node_modules'), 'dir');
 		await Promise.all([

@@ -6,4 +6,4 @@ linker = "hoisted"
 registry = { url = "https://registry.npmjs.org", token = "$BUN_CONFIG_TOKEN" }
 
 [install.scopes]
-"@victor-software-house" = { url = "https://npm.pkg.github.com", token = "$NODE_AUTH_TOKEN" }
+"@victor-software-house" = { url = "https://npm.pkg.github.com", token = "$GITHUB_TOKEN" }
