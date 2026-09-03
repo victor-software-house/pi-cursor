@@ -129,5 +129,6 @@ not claimed.
 - No invented Grok thinking summary: current RunInference measurements provide an opaque
   continuation signature but no reasoning text for Grok 4.6.
 
-See [`docs/plan.md`](docs/plan.md) for the implementation and verification record, and
-[`docs/decisions.md`](docs/decisions.md) for protocol and scope decisions.
+See the
+[implementation and verification record](https://github.com/victor-software-house/pi-cursor/blob/main/docs/plan.md)
+and [protocol and scope decisions](https://github.com/victor-software-house/pi-cursor/blob/main/docs/decisions.md).

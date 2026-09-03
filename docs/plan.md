@@ -1,8 +1,8 @@
 # pi-cursor release-readiness plan
 
-> **Status:** Implementation, release-candidate proof, public-history privacy audit, and repository
-> visibility are complete. The operator authorized `0.0.1` on 2026-09-03; the Changesets/OIDC
-> release path is being enabled and remains incomplete until exact installed-artifact verification.
+> **Status:** `pi-cursor-inference@0.0.1` released 2026-09-03. npm, `v0.0.1`, the GitHub
+> Release, clean Pi installation, live routed inference, and the pi.dev extension/gallery listing
+> are verified. One non-runtime README link correction awaits a future package version.
 
 Decisions that govern this plan: [`decisions.md`](decisions.md).
 
@@ -184,19 +184,44 @@ The temporary token, Ego Browser task space, and Herdr test pane were removed af
 
 ## Release execution gates
 
-The visibility and authorization gates are complete. The remaining ordered proof is:
+All authorized `0.0.1` gates completed:
 
-1. Merge the release-enablement change with the patch changeset after CI and package gates pass.
-2. Verify the Version Packages App opens an independently green `0.0.1` PR.
-3. Configure or verify npm trusted publishing for this repository's `release.yml` with publish
+1. The release-enablement changeset passed CI and generated the Version Packages PR.
+2. The App-authored Version Packages PR independently passed CI and was merged at its exact head.
+3. npm trusted publishing was configured for this repository and `release.yml` with publish
    permission.
-4. Merge the exact green Version Packages PR and let Actions publish, tag, and create the GitHub
-   Release.
-5. In a clean agent directory, install `npm:pi-cursor-inference@0.0.1`, confirm the provider,
-   `/cursor` pane, and gallery metadata, then perform one bounded Composer response after fresh
-   OAuth if required.
-6. Verify npm metadata/provenance, the `v0.0.1` tag target, GitHub Release, pi.dev package listing,
-   and exact-version Node/Bun loads before calling the release complete.
+4. Actions published `0.0.1`, created the exact tag, and created the GitHub Release.
+5. A clean agent directory installed `npm:pi-cursor-inference@0.0.1`; Pi loaded it and a visible
+   Cursor-provider turn preserved thinking and final text.
+6. npm integrity, the tag target, GitHub Release, and pi.dev extension/gallery listing were verified.
+
+## Release verification
+
+Completed for `0.0.1`:
+
+1. Version Packages PR [#1](https://github.com/victor-software-house/pi-cursor/pull/1) contained
+   only the consumed changeset, `CHANGELOG.md`, and the `0.0.1` manifest bump; its CI passed.
+2. npm trusted publishing was created for `victor-software-house/pi-cursor` and `release.yml` with
+   publish permission. The workflow minted the OIDC token and published with Bun.
+3. The first publish reached npm successfully but the immediate clean Bun smoke raced registry
+   propagation. The exact-run retry was idempotent: it skipped the existing version, then created
+   and verified `v0.0.1` and the GitHub Release.
+4. The registry's SHA-512 integrity equals the independently downloaded tarball. The tag peels to
+   the exact version commit `f6e94fcf989d68a5d7fb4ddd13a0c7007aacf123`.
+5. `pi install npm:pi-cursor-inference@0.0.1` installed into a clean agent directory. Pi 0.84.4
+   reported `pi-cursor-inference@0.0.1:dist`; `/cursor help` worked, and a visible Herdr session
+   routed a Gemini 3.7 Flash proof through `cursor`, retaining displayed thinking and final text.
+6. `https://pi.dev/packages/pi-cursor-inference` classifies `0.0.1` as an extension, renders the
+   gallery image, exposes the install command, and displays the exact `pi` manifest.
+
+The published `0.0.1` README's final relative links resolve through jsDelivr to `docs/plan.md` and
+`docs/decisions.md`, which the package intentionally does not ship, so both return 404. Main now
+uses absolute GitHub links. npm versions are immutable; publishing that documentation-only correction
+requires a separately authorized `0.0.2`. Runtime, installation, and gallery discovery are unaffected.
+
+The npm packument does not expose a `dist.attestations` field for `0.0.1`. The workflow log proves
+trusted-publisher OIDC token minting and successful publication, but Bun 1.4 did not emit a separate
+npm provenance attestation. Do not claim one exists.
 
 ## Known boundaries
 
