@@ -39,9 +39,13 @@ const forbiddenInBundle: readonly RegExp[] = [
 ];
 
 const allowedExternalImports = new Set([
+	'@bufbuild/protobuf',
+	'@bufbuild/protobuf/codegenv2',
+	'@bufbuild/protobuf/wkt',
 	'@earendil-works/pi-ai',
 	'@earendil-works/pi-coding-agent',
 	'@earendil-works/pi-tui',
+	'ts-pattern',
 ]);
 const maxBundleBytes = 160_000;
 const maxGzipBytes = 50_000;

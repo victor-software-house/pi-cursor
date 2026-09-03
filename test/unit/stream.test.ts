@@ -2,6 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { create } from '@bufbuild/protobuf';
 import {
 	InferenceExtendedUsageInfoSchema,
+	InferenceExtraDataSchema,
+	InferenceImageDescriptionSchema,
+	InferenceImageDescriptionsInfoSchema,
+	InferenceMessageRole,
+	InferenceProviderMetadataInfoSchema,
+	InferenceReasoningPartSchema,
+	InferenceResponseInfoSchema,
+	InferenceResponseMessageSchema,
 	InferenceStreamErrorSchema,
 	InferenceStreamErrorType,
 	InferenceStreamResponseSchema,
@@ -13,7 +21,12 @@ import {
 } from '@cursor/gen/aiserver/v1/inference_pb';
 import { streamCursor } from '@cursor/stream';
 import type { CursorInferenceRuntime } from '@cursor/transport';
-import type { AssistantMessageEvent, Context, Model } from '@earendil-works/pi-ai';
+import type {
+	AssistantMessageEvent,
+	Context,
+	Model,
+	SimpleStreamOptions,
+} from '@earendil-works/pi-ai';
 
 type CursorManagedRuntime = Pick<CursorInferenceRuntime, 'invoke' | 'shutdown'>;
 
@@ -86,6 +99,7 @@ function runtimeWith(
 async function collect(
 	context: Context,
 	runtime: CursorManagedRuntime,
+	options: SimpleStreamOptions = { apiKey: 'token', sessionId: 'pi-session' },
 ): Promise<{
 	readonly events: AssistantMessageEvent[];
 	readonly result: Awaited<ReturnType<ReturnType<typeof streamCursor>['result']>>;
@@ -94,7 +108,7 @@ async function collect(
 		MODEL,
 		context,
 		{ runtime, createInvocationId: () => 'invocation-test' },
-		{ apiKey: 'token', sessionId: 'pi-session' },
+		options,
 	);
 	const events: AssistantMessageEvent[] = [];
 	for await (const event of stream) events.push(event);
@@ -137,6 +151,102 @@ describe('managed inference Pi stream', () => {
 		expect(result.content).toEqual([
 			{ type: 'toolCall', id: 'tool-1', name: TOOL.name, arguments: { left: 'A', right: 'B' } },
 		]);
+	});
+
+	test('defaults max mode off and enables it only through the Cursor sampling parameter', async () => {
+		const routeKeys: string[] = [];
+		await collect(
+			{ messages: [{ role: 'user', content: 'normal', timestamp: 1 }] },
+			runtimeWith([], ({ routeKey }) => routeKeys.push(routeKey)),
+		);
+		await collect(
+			{ messages: [{ role: 'user', content: 'max', timestamp: 1 }] },
+			runtimeWith([], ({ routeKey }) => routeKeys.push(routeKey)),
+			{
+				apiKey: 'token',
+				sessionId: 'pi-session-max',
+				samplingParams: { cursorMaxMode: true },
+			},
+		);
+		expect(routeKeys).toEqual([
+			'{"modelId":"composer-2.5","maxMode":false,"parameters":[{"id":"fast","value":"false"}]}',
+			'{"modelId":"composer-2.5","maxMode":true,"parameters":[{"id":"fast","value":"false"}]}',
+		]);
+	});
+
+	test('uses final response messages and preserves signature-only reasoning and side channels', async () => {
+		const { result } = await collect(
+			{ messages: [{ role: 'user', content: 'reason', timestamp: 1 }] },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'providerMetadata',
+						value: create(InferenceProviderMetadataInfoSchema, {
+							metadata: { provider: 'xai' },
+						}),
+					},
+				}),
+				response('ignored', {
+					response: {
+						case: 'imageDescriptions',
+						value: create(InferenceImageDescriptionsInfoSchema, {
+							descriptions: [
+								create(InferenceImageDescriptionSchema, {
+									messageIndex: 0,
+									partIndex: 1,
+									description: 'diagram',
+								}),
+							],
+						}),
+					},
+				}),
+				response('ignored', {
+					response: {
+						case: 'responseInfo',
+						value: create(InferenceResponseInfoSchema, {
+							id: 'response-1',
+							model: 'cursor-grok-4.6-high',
+							createdAt: 1234n,
+							supportsSelfSummary: true,
+							inferenceExtraData: create(InferenceExtraDataSchema, {}),
+							messages: [
+								create(InferenceResponseMessageSchema, {
+									role: InferenceMessageRole.ASSISTANT,
+									content: 'answer',
+									reasoningParts: [
+										create(InferenceReasoningPartSchema, {
+											text: '',
+											signature: 'opaque-reasoning',
+											modelName: 'cursor-grok-4.6-high',
+										}),
+									],
+								}),
+							],
+						}),
+					},
+				}),
+			]),
+		);
+		expect(result.content).toEqual([
+			{ type: 'thinking', thinking: '', thinkingSignature: 'opaque-reasoning' },
+			{ type: 'text', text: 'answer' },
+		]);
+		expect(result).toMatchObject({
+			responseId: 'response-1',
+			responseModel: 'cursor-grok-4.6-high',
+			timestamp: 1234,
+			diagnostics: [
+				{
+					type: 'cursor-inference-response',
+					details: {
+						arms: { providerMetadata: 1, imageDescriptions: 1, responseInfo: 1 },
+						providerMetadata: { provider: 'xai' },
+						imageDescriptions: [{ messageIndex: 0, partIndex: 1, description: 'diagram' }],
+						responseInfo: { createdAt: '1234', supportsSelfSummary: true },
+					},
+				},
+			],
+		});
 	});
 
 	test('streams text and gives extended usage precedence', async () => {

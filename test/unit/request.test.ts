@@ -143,7 +143,6 @@ describe('managed inference request', () => {
 			agentMode: 'agent',
 			requestedModel: {
 				modelId: 'composer-2.5',
-				maxMode: true,
 				parameters: [{ id: 'fast', value: 'false' }],
 			},
 			routingConversation: [
@@ -152,8 +151,31 @@ describe('managed inference request', () => {
 			],
 		});
 		expect(inferenceRoutingKey(MODEL, undefined)).toBe(
+			'{"modelId":"composer-2.5","maxMode":false,"parameters":[{"id":"fast","value":"false"}]}',
+		);
+		expect(inferenceRoutingKey(MODEL, undefined, true)).toBe(
 			'{"modelId":"composer-2.5","maxMode":true,"parameters":[{"id":"fast","value":"false"}]}',
 		);
+	});
+
+	test('forwards explicitly configured model request limits', () => {
+		const request = buildInferenceRequest(
+			{ messages: [{ role: 'user', content: 'bounded', timestamp: 1 }] },
+			{
+				maxTokens: 2048,
+				temperature: 0.25,
+				topP: 0.9,
+				stopSequences: ['STOP'],
+			},
+		);
+		expect(toJson(InferenceStreamRequestSchema, request)).toMatchObject({
+			modelConfig: {
+				maxTokens: 2048,
+				temperature: 0.25,
+				topP: 0.9,
+				stopSequences: ['STOP'],
+			},
+		});
 	});
 
 	test('normalizes a text-only Pi user-part array to Cursor plain text', () => {

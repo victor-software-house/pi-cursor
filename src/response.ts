@@ -1,10 +1,18 @@
 import { isDeepStrictEqual } from 'node:util';
+import type { JsonObject } from '@bufbuild/protobuf';
 import type {
+	InferenceExtraData,
+	InferenceImageDescription,
+	InferenceResponseInfo,
 	InferenceStreamResponse,
+	InferenceToolCall,
 	InferenceToolCallStreamPart,
 	RunInferenceServerMessage,
 } from '@cursor/gen/aiserver/v1/inference_pb';
-import { InferenceStreamErrorType } from '@cursor/gen/aiserver/v1/inference_pb';
+import {
+	InferenceMessageRole,
+	InferenceStreamErrorType,
+} from '@cursor/gen/aiserver/v1/inference_pb';
 import type {
 	AssistantMessage,
 	AssistantMessageEventStream,
@@ -15,6 +23,7 @@ import type {
 } from '@earendil-works/pi-ai';
 import { parseStreamingJson } from '@earendil-works/pi-ai';
 import { omitUndefined } from '@victor-software-house/pi-type-kit';
+import { match } from 'ts-pattern';
 
 interface OpenBlock<T> {
 	readonly index: number;
@@ -45,6 +54,55 @@ function objectArguments(json: string, complete: boolean): Record<string, unknow
 	return Object.fromEntries(Object.entries(parsed));
 }
 
+function finalToolArguments(tool: InferenceToolCall): Record<string, unknown> {
+	if (tool.args !== undefined) return Object.fromEntries(Object.entries(tool.args));
+	if (tool.rawToolCallArgs === undefined || tool.rawToolCallArgs === '') return {};
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(tool.rawToolCallArgs);
+	} catch (error) {
+		throw new Error(`Cursor final tool call '${tool.toolCallId}' has invalid raw arguments`, {
+			cause: error,
+		});
+	}
+	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+		throw new Error(`Cursor final tool call '${tool.toolCallId}' arguments are not an object`);
+	}
+	return Object.fromEntries(Object.entries(parsed));
+}
+
+function extraData(value: InferenceExtraData): Record<string, unknown> {
+	return {
+		tokenLogprobs: value.tokenLogprobs.map(({ values }) => values),
+		tokenIds: value.tokenIds.map(({ values }) => values.map(Number)),
+		promptTokenIds: value.promptTokenIds.map(({ values }) => values.map(Number)),
+		extraTokens: value.extraTokens.map(({ values }) => values.map(Number)),
+		extraLogprobs: value.extraLogprobs.map(({ values }) => values),
+		routingMatrix: value.routingMatrix.map(({ values }) =>
+			values.map((item) => (item === '' ? null : item)),
+		),
+	};
+}
+
+function imageDescription(value: InferenceImageDescription): Record<string, unknown> {
+	return omitUndefined({
+		messageIndex: value.messageIndex,
+		partIndex: value.partIndex,
+		expContentIndex: value.expContentIndex,
+		description: value.description,
+	});
+}
+
+function responseRole(role: InferenceMessageRole): string {
+	return match(role)
+		.with(InferenceMessageRole.USER, () => 'user')
+		.with(InferenceMessageRole.ASSISTANT, () => 'assistant')
+		.with(InferenceMessageRole.TOOL, () => 'tool')
+		.with(InferenceMessageRole.SYSTEM, () => 'system')
+		.with(InferenceMessageRole.UNSPECIFIED, () => 'unspecified')
+		.otherwise((value) => `unknown-${String(value)}`);
+}
+
 function errorMessage(
 	response: Extract<InferenceStreamResponse['response'], { case: 'error' }>['value'],
 ): string {
@@ -69,8 +127,12 @@ export class CursorInferenceMapper {
 	#thinking: OpenBlock<ThinkingContent> | undefined;
 	readonly #tools = new Map<string, OpenTool>();
 	readonly #completedTools = new Set<string>();
-	readonly #responseKinds = new Set<InferenceStreamResponse['response']['case']>();
+	readonly #responseKinds = new Map<InferenceStreamResponse['response']['case'], number>();
 	#streamError: { readonly message: string; readonly outputLimit: boolean } | undefined;
+	#finalContent: AssistantMessage['content'] | undefined;
+	#providerMetadata: JsonObject | undefined;
+	readonly #imageDescriptions: Record<string, unknown>[] = [];
+	#responseDetails: Record<string, unknown> | undefined;
 
 	constructor(
 		stream: AssistantMessageEventStream,
@@ -94,72 +156,117 @@ export class CursorInferenceMapper {
 	}
 
 	#handleResponse(response: InferenceStreamResponse): void {
-		this.#responseKinds.add(response.response.case);
-		switch (response.response.case) {
-			case 'thinkingPart': {
-				const part = response.response.value;
-				if (part.text !== '') this.#appendThinking(part.text, part.signature);
-				if (part.isFinal) this.#endThinking();
-				return;
-			}
-			case 'textPart': {
-				const part = response.response.value;
-				if (part.text !== '') this.#appendText(part.text);
-				if (part.isFinal) this.#endText();
-				return;
-			}
-			case 'toolCallPart':
-				this.#handleTool(response.response.value);
-				return;
-			case 'extendedUsage': {
-				const usage = response.response.value;
-				this.#output.usage.input = usage.inputTokens;
-				this.#output.usage.output = usage.outputTokens;
-				this.#output.usage.cacheRead = usage.cacheReadTokens;
-				this.#output.usage.cacheWrite = usage.cacheWriteTokens;
+		const responseCase = response.response.case;
+		this.#responseKinds.set(responseCase, (this.#responseKinds.get(responseCase) ?? 0) + 1);
+		match(response.response)
+			.with({ case: 'thinkingPart' }, ({ value }) => {
+				if (value.text !== '') this.#appendThinking(value.text, value.signature);
+				if (value.isFinal) this.#endThinking();
+			})
+			.with({ case: 'textPart' }, ({ value }) => {
+				if (value.text !== '') this.#appendText(value.text);
+				if (value.isFinal) this.#endText();
+			})
+			.with({ case: 'toolCallPart' }, ({ value }) => this.#handleTool(value))
+			.with({ case: 'extendedUsage' }, ({ value }) => {
+				this.#output.usage.input = value.inputTokens;
+				this.#output.usage.output = value.outputTokens;
+				this.#output.usage.cacheRead = value.cacheReadTokens;
+				this.#output.usage.cacheWrite = value.cacheWriteTokens;
 				this.#updateTotal();
-				return;
-			}
-			case 'usage': {
+			})
+			.with({ case: 'usage' }, ({ value }) => {
 				if (this.#responseKinds.has('extendedUsage')) return;
-				const usage = response.response.value;
-				this.#output.usage.input = usage.promptTokens;
-				this.#output.usage.output = usage.completionTokens;
+				this.#output.usage.input = value.promptTokens;
+				this.#output.usage.output = value.completionTokens;
 				this.#output.usage.cacheRead = 0;
 				this.#output.usage.cacheWrite = 0;
 				this.#updateTotal();
-				return;
-			}
-			case 'responseInfo': {
-				const info = response.response.value;
-				if (info.errorMessage !== undefined && info.errorMessage !== '') {
-					this.#streamError = { message: info.errorMessage, outputLimit: false };
+			})
+			.with({ case: 'responseInfo' }, ({ value }) => {
+				if (value.errorMessage !== undefined && value.errorMessage !== '') {
+					this.#streamError = { message: value.errorMessage, outputLimit: false };
 				}
-				if (info.id !== '') this.#output.responseId = info.id;
-				if (info.model !== '') this.#output.responseModel = info.model;
-				return;
-			}
-			case 'error': {
-				const error = response.response.value;
+				if (value.id !== '') this.#output.responseId = value.id;
+				if (value.model !== '') this.#output.responseModel = value.model;
+				const createdAt = Number(value.createdAt);
+				if (Number.isSafeInteger(createdAt) && createdAt > 0) this.#output.timestamp = createdAt;
+				this.#captureFinalResponse(value);
+			})
+			.with({ case: 'error' }, ({ value }) => {
 				this.#streamError = {
-					message: errorMessage(error),
+					message: errorMessage(value),
 					outputLimit:
-						error.isOutputTokenLimitError ||
-						error.errorType === InferenceStreamErrorType.OUTPUT_TOKEN_LIMIT,
+						value.isOutputTokenLimitError ||
+						value.errorType === InferenceStreamErrorType.OUTPUT_TOKEN_LIMIT,
 				};
-				return;
-			}
-			case 'invocationId':
-				if (response.response.value.invocationId !== this.#invocationId) {
+			})
+			.with({ case: 'invocationId' }, ({ value }) => {
+				if (value.invocationId !== this.#invocationId) {
 					throw new Error('Cursor nested invocation identity disagrees with its outer envelope');
 				}
-				return;
-			case 'providerMetadata':
-			case 'imageDescriptions':
-				return;
-			case undefined:
+			})
+			.with({ case: 'providerMetadata' }, ({ value }) => {
+				this.#providerMetadata = value.metadata;
+			})
+			.with({ case: 'imageDescriptions' }, ({ value }) => {
+				this.#imageDescriptions.push(...value.descriptions.map(imageDescription));
+			})
+			.with({ case: undefined }, () => {
 				throw new Error('Cursor inference response has no arm');
+			})
+			.exhaustive();
+	}
+
+	#captureFinalResponse(info: InferenceResponseInfo): void {
+		const content: AssistantMessage['content'] = [];
+		let substantive = false;
+		const roleCounts: Record<string, number> = {};
+		for (const message of info.messages) {
+			const role = responseRole(message.role);
+			roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+			// The IDE source treats every final-response role except TOOL as assistant.
+			if (message.role === InferenceMessageRole.TOOL) continue;
+			for (const part of message.reasoningParts) {
+				const signature = part.isRedacted ? part.redactedData : part.signature;
+				content.push(
+					omitUndefined({
+						type: 'thinking' as const,
+						thinking: part.text,
+						thinkingSignature: signature,
+						redacted: part.isRedacted ? true : undefined,
+					}),
+				);
+				if (part.text.trim() !== '') substantive = true;
+			}
+			if (message.content !== undefined && message.content.trim() !== '') {
+				content.push({ type: 'text', text: message.content });
+				substantive = true;
+			}
+			for (const tool of message.toolCalls) {
+				if (tool.toolCallId === '' || tool.toolName === '') {
+					throw new Error('Cursor final response contains an unnamed tool call');
+				}
+				if (!this.#advertisedTools.has(tool.toolName)) {
+					throw new Error(`Cursor final response called unadvertised tool '${tool.toolName}'`);
+				}
+				content.push({
+					type: 'toolCall',
+					id: tool.toolCallId,
+					name: tool.toolName,
+					arguments: finalToolArguments(tool),
+				});
+				substantive = true;
+			}
 		}
+		if (substantive) this.#finalContent = content;
+		this.#responseDetails = omitUndefined({
+			createdAt: info.createdAt.toString(),
+			supportsSelfSummary: info.supportsSelfSummary,
+			roleCounts,
+			inferenceExtraData:
+				info.inferenceExtraData === undefined ? undefined : extraData(info.inferenceExtraData),
+		});
 	}
 
 	#appendThinking(delta: string, signature: string | undefined): void {
@@ -327,12 +434,37 @@ export class CursorInferenceMapper {
 		if (this.#tools.size > 0) {
 			throw new Error('Cursor invocation ended with incomplete tool calls');
 		}
+		if (this.#finalContent !== undefined) {
+			this.#output.content.splice(0, this.#output.content.length, ...this.#finalContent);
+		}
+		const details: Record<string, unknown> = {
+			arms: Object.fromEntries(this.#responseKinds),
+		};
+		if (this.#providerMetadata !== undefined) details['providerMetadata'] = this.#providerMetadata;
+		if (this.#imageDescriptions.length > 0) {
+			details['imageDescriptions'] = this.#imageDescriptions;
+		}
+		if (this.#responseDetails !== undefined) details['responseInfo'] = this.#responseDetails;
+		this.#output.diagnostics = [
+			...(this.#output.diagnostics ?? []),
+			{
+				type: 'cursor-inference-response',
+				timestamp: Date.now(),
+				details,
+			},
+		];
 		if (this.#streamError !== undefined) {
 			if (this.#streamError.outputLimit && this.#output.content.length > 0) {
 				return { stopReason: 'length' };
 			}
 			return { stopReason: 'error', errorMessage: this.#streamError.message };
 		}
-		return { stopReason: this.#completedTools.size > 0 ? 'toolUse' : 'stop' };
+		return {
+			stopReason:
+				this.#finalContent?.some(({ type }) => type === 'toolCall') === true ||
+				this.#completedTools.size > 0
+					? 'toolUse'
+					: 'stop',
+		};
 	}
 }

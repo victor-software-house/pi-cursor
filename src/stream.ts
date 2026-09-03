@@ -17,6 +17,7 @@ import type {
 } from '@earendil-works/pi-ai';
 import { calculateCost, createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 import { omitUndefined } from '@victor-software-house/pi-type-kit';
+import { match, P } from 'ts-pattern';
 
 export interface CursorStreamRuntime {
 	readonly runtime:
@@ -49,6 +50,41 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
+function cursorMaxMode(model: Model<'cursor-inference'>, options?: SimpleStreamOptions): boolean {
+	const value =
+		options?.samplingParams?.['cursorMaxMode'] ?? model.samplingParams?.['cursorMaxMode'];
+	return match(value)
+		.with(undefined, () => false)
+		.with(P.boolean, (enabled) => enabled)
+		.otherwise(() => {
+			throw new Error('Cursor sampling parameter cursorMaxMode must be a boolean');
+		});
+}
+
+function optionalNumber(value: unknown, name: string): number | undefined {
+	return match(value)
+		.with(undefined, () => undefined)
+		.with(
+			P.when(
+				(candidate): candidate is number =>
+					typeof candidate === 'number' && Number.isFinite(candidate),
+			),
+			(number) => number,
+		)
+		.otherwise(() => {
+			throw new Error(`Cursor sampling parameter ${name} must be a finite number`);
+		});
+}
+
+function optionalStrings(value: unknown, name: string): readonly string[] | undefined {
+	return match(value)
+		.with(undefined, () => undefined)
+		.with(P.array(P.string), (strings) => strings)
+		.otherwise(() => {
+			throw new Error(`Cursor sampling parameter ${name} must be an array of strings`);
+		});
+}
+
 /** One Pi provider call is one correlated invocation on the session's routed outer run. */
 export function streamCursor(
 	model: Model<'cursor-inference'>,
@@ -71,11 +107,23 @@ export function streamCursor(
 			}
 			const invocationId = (runtime.createInvocationId ?? (() => crypto.randomUUID()))();
 			const reasoning = typeof options.reasoning === 'string' ? options.reasoning : undefined;
-			const request = buildInferenceRequest(context);
+			const maxMode = cursorMaxMode(model, options);
+			const request = buildInferenceRequest(
+				context,
+				omitUndefined({
+					maxTokens: options.maxTokens,
+					temperature: options.temperature,
+					topP: optionalNumber(options.samplingParams?.['topP'], 'topP'),
+					stopSequences: optionalStrings(
+						options.samplingParams?.['stopSequences'],
+						'stopSequences',
+					),
+				}),
+			);
 			const runRequest = create(RunInferenceClientMessageSchema, {
 				message: {
 					case: 'runRequest',
-					value: buildInferenceRunRequest(model, context, sessionId, reasoning),
+					value: buildInferenceRunRequest(model, context, sessionId, reasoning, maxMode),
 				},
 			});
 			const mapper = new CursorInferenceMapper(
@@ -90,7 +138,7 @@ export function streamCursor(
 					: runtime.runtime;
 			await runtimeForToken.invoke(
 				sessionId,
-				inferenceRoutingKey(model, reasoning),
+				inferenceRoutingKey(model, reasoning, maxMode),
 				runRequest,
 				invocationId,
 				request,

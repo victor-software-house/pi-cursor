@@ -7,9 +7,17 @@
 register a provider. Do not install it expecting Cursor inference support.
 
 This private repository implements Cursor as a plain inference provider for
-[P](https://github.com/badlogic/pi-mono), using
+[Pi](https://github.com/badlogic/pi-mono), using
 `aiserver.v1.InferenceService/RunInference`. Development has resumed with native OAuth login and
 dynamic model discovery; release automation stays disabled pending an explicit operator decision.
+
+## Configuration
+
+Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
+Set the Cursor-specific model/request sampling parameter `cursorMaxMode` to `true` to enable it.
+The flag participates in Cursor's variant resolution and is sent as
+`InferenceRequestedModel.max_mode`; Cursor returns the concrete resolved variant in `runReady` and
+`responseInfo`.
 
 ## Preserved scope
 

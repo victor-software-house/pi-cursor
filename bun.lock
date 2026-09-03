@@ -21,6 +21,7 @@
         "oxlint": "1.80.0",
         "oxlint-tsgolint": "7.0.2001",
         "publint": "0.3.22",
+        "ts-pattern": "5.9.0",
         "tsdown": "0.22.14",
         "typescript": "7.0.2",
       },

@@ -4,6 +4,7 @@ import { ValueSchema } from '@bufbuild/protobuf/wkt';
 import type {
 	InferenceContentPart,
 	InferenceCoreMessage,
+	InferenceModelConfig,
 	InferenceRequestedModel,
 	InferenceStreamRequest,
 	RunInferenceRoutingMessage,
@@ -16,6 +17,7 @@ import {
 	InferenceCoreMessageSchema,
 	InferenceImagePartSchema,
 	InferenceMessageRole,
+	InferenceModelConfigSchema,
 	InferenceModelParameterValueSchema,
 	InferenceReasoningPartSchema,
 	InferenceRequestedModelSchema,
@@ -33,6 +35,13 @@ import { jsonValue, requiredJsonObject } from '@cursor/json';
 import { resolveRequestedModel } from '@cursor/model';
 import type { Context, ImageContent, Message, Model, Tool } from '@earendil-works/pi-ai';
 import { omitUndefined } from '@victor-software-house/pi-type-kit';
+
+export interface CursorInferenceRequestOptions {
+	readonly maxTokens?: number;
+	readonly temperature?: number;
+	readonly topP?: number;
+	readonly stopSequences?: readonly string[];
+}
 
 function imagePart(image: ImageContent): InferenceContentPart {
 	validateCursorImage(image);
@@ -168,7 +177,10 @@ function toolToInference(tool: Tool) {
 }
 
 /** Build the complete per-invocation request. Routing and model selection remain on the outer run. */
-export function buildInferenceRequest(context: Context): InferenceStreamRequest {
+export function buildInferenceRequest(
+	context: Context,
+	options: CursorInferenceRequestOptions = {},
+): InferenceStreamRequest {
 	const messages = context.messages.map(messageToInference);
 	if (context.systemPrompt !== undefined && context.systemPrompt !== '') {
 		messages.unshift(
@@ -178,10 +190,30 @@ export function buildInferenceRequest(context: Context): InferenceStreamRequest 
 			}),
 		);
 	}
-	return create(InferenceStreamRequestSchema, {
-		messages,
-		tools: context.tools?.map(toolToInference) ?? [],
-	});
+	const modelConfig: InferenceModelConfig | undefined =
+		options.maxTokens === undefined &&
+		options.temperature === undefined &&
+		options.topP === undefined &&
+		options.stopSequences === undefined
+			? undefined
+			: create(
+					InferenceModelConfigSchema,
+					omitUndefined({
+						maxTokens: options.maxTokens,
+						temperature: options.temperature,
+						topP: options.topP,
+						stopSequences:
+							options.stopSequences === undefined ? undefined : [...options.stopSequences],
+					}),
+				);
+	return create(
+		InferenceStreamRequestSchema,
+		omitUndefined({
+			messages,
+			tools: context.tools?.map(toolToInference) ?? [],
+			modelConfig,
+		}),
+	);
 }
 
 function routingText(message: Message): string {
@@ -216,10 +248,12 @@ function routingConversation(context: Context): RunInferenceRoutingMessage[] {
 export function inferenceRequestedModel(
 	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
+	maxMode = false,
 ): InferenceRequestedModel {
-	// Cursor IDE 3.18.9 buildRequestedModel forwards the active max-mode flag, and
-	// ordinary 3.18.9 IDE sessions submit the current catalog models with it enabled.
-	const requested = resolveRequestedModel(model, omitUndefined({ maxMode: true, reasoning }));
+	// Cursor IDE 3.18.9 stores max mode as explicit model-selection state. Ordinary
+	// composer/cmd-k/plan/spec/deep-search/quick-agent defaults are false; only the
+	// separate background-composer default is true. Never turn it on implicitly.
+	const requested = resolveRequestedModel(model, omitUndefined({ maxMode, reasoning }));
 	return create(InferenceRequestedModelSchema, {
 		modelId: requested.modelId,
 		maxMode: requested.maxMode,
@@ -232,8 +266,9 @@ export function inferenceRequestedModel(
 export function inferenceRoutingKey(
 	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
+	maxMode = false,
 ): string {
-	const requested = inferenceRequestedModel(model, reasoning);
+	const requested = inferenceRequestedModel(model, reasoning, maxMode);
 	return JSON.stringify({
 		modelId: requested.modelId,
 		maxMode: requested.maxMode,
@@ -246,11 +281,12 @@ export function buildInferenceRunRequest(
 	context: Context,
 	sessionId: string,
 	reasoning: string | undefined,
+	maxMode = false,
 ): RunInferenceRunRequest {
 	if (sessionId === '') throw new Error('Cursor managed inference requires a stable Pi session id');
 	return create(RunInferenceRunRequestSchema, {
 		conversationId: sessionId,
-		requestedModel: inferenceRequestedModel(model, reasoning),
+		requestedModel: inferenceRequestedModel(model, reasoning, maxMode),
 		routingConversation: routingConversation(context),
 		agentMode: 'agent',
 	});
