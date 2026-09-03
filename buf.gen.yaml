@@ -9,6 +9,18 @@ inputs:
       - agent.v1.GetUsableModelsResponse
       - aiserver.v1.AvailableModelsRequest
       - aiserver.v1.AvailableModelsResponse
+      - aiserver.v1.GetAggregatedUsageEventsRequest
+      - aiserver.v1.GetAggregatedUsageEventsResponse
+      - aiserver.v1.GetCurrentPeriodUsageRequest
+      - aiserver.v1.GetCurrentPeriodUsageResponse
+      - aiserver.v1.GetHardLimitRequest
+      - aiserver.v1.GetHardLimitResponse
+      - aiserver.v1.GetMeRequest
+      - aiserver.v1.GetMeResponse
+      - aiserver.v1.GetMonthlyBillingCycleRequest
+      - aiserver.v1.GetMonthlyBillingCycleResponse
+      - aiserver.v1.GetPlanInfoRequest
+      - aiserver.v1.GetPlanInfoResponse
       - aiserver.v1.RunInferenceClientMessage
       - aiserver.v1.RunInferenceServerMessage
 

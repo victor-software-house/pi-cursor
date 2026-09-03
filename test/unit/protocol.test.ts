@@ -11,6 +11,8 @@ const catalogAiProto = join(root, 'proto', 'aiserver', 'v1', 'catalog.proto');
 const catalogAgentGenerated = join(root, 'src', 'gen', 'agent', 'v1', 'catalog_pb.ts');
 const catalogAiGenerated = join(root, 'src', 'gen', 'aiserver', 'v1', 'catalog_pb.ts');
 const catalogLockPath = join(root, 'docs', 'protocol', 'catalog-2026.09.02', 'artifact-lock.json');
+const dashboardProto = join(root, 'proto', 'aiserver', 'v1', 'dashboard.proto');
+const dashboardGenerated = join(root, 'src', 'gen', 'aiserver', 'v1', 'dashboard_pb.ts');
 
 async function sha256(path: string): Promise<string> {
 	return createHash('sha256')
@@ -101,5 +103,15 @@ describe('selected Cursor CLI catalog closure', () => {
 		expect(agent.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(6);
 		expect(ai.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(4);
 		expect(`${agent}\n${ai}`.match(/^export const .*Schema: GenService/gmu)).toBeNull();
+	});
+
+	test('pins only the selected DashboardService usage closure', async () => {
+		expect(await sha256(dashboardProto)).toBe(
+			'0b4aefccb038fee451efebb062a405db1ab9c0c69fc8b96f8c87813c3612e239',
+		);
+		const generated = await Bun.file(dashboardGenerated).text();
+		expect(generated.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(18);
+		expect(generated.match(/^export const .*Schema: GenEnum/gmu)?.length).toBe(1);
+		expect(generated.match(/^export const .*Schema: GenService/gmu)).toBeNull();
 	});
 });

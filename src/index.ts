@@ -1,3 +1,4 @@
+import { registerCursorCommand } from '@cursor/command';
 import { loadCursorMachineIdentity } from '@cursor/identity';
 import { createCursorProvider } from '@cursor/provider';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
@@ -8,6 +9,7 @@ export default async function cursorInference(pi: ExtensionAPI): Promise<void> {
 	const identity = await loadCursorMachineIdentity(getAgentDir());
 	const runtime = createCursorProvider(identity);
 	pi.registerProvider(runtime.provider);
+	registerCursorCommand(pi);
 
 	if (identity.machineIdSource === 'fallback') {
 		pi.on('session_start', (_event, ctx) => {
