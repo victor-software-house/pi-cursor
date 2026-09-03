@@ -71,10 +71,10 @@ describe('selected Cursor CLI catalog closure', () => {
 			'c81e4a9b75091f471a2690a048099d828e2204a6d9f11cc14885f9cba86a3aca',
 		);
 		expect(await sha256(catalogAgentProto)).toBe(
-			'8811911c4633feaa93fd4ac984a22603aae067be7ada0c8c088acb3039fa81ea',
+			'87120454f838cf70026184a822ab19f8e135b8dd170f9405b66088e8186f2b78',
 		);
 		expect(await sha256(catalogAiProto)).toBe(
-			'aa330a68a037543dac2203000b8d1ae884c6733c1a4a193070f8c09ae1821987',
+			'1c63829d255cf8edf3c9443fb84d9415d64bd7cdcfdb21f4f89883faddbf6b5f',
 		);
 		const lock: unknown = await Bun.file(catalogLockPath).json();
 		expect(lock).toMatchObject({
@@ -95,13 +95,13 @@ describe('selected Cursor CLI catalog closure', () => {
 		});
 	});
 
-	test('generates only the ten selected catalog messages', async () => {
+	test('generates only the fourteen selected catalog messages', async () => {
 		const [agent, ai] = await Promise.all([
 			Bun.file(catalogAgentGenerated).text(),
 			Bun.file(catalogAiGenerated).text(),
 		]);
-		expect(agent.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(6);
-		expect(ai.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(4);
+		expect(agent.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(8);
+		expect(ai.match(/^export const .*Schema: GenMessage/gmu)?.length).toBe(6);
 		expect(`${agent}\n${ai}`.match(/^export const .*Schema: GenService/gmu)).toBeNull();
 	});
 

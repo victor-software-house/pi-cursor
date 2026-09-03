@@ -83,6 +83,15 @@ function isOpenAiModel(modelId: string): boolean {
 	return /^(gpt-|o[1-9](?:-|$)|codex-)/u.test(modelId);
 }
 
+function withContext(
+	parameters: readonly CursorModelParameter[],
+	context: string | undefined,
+): readonly CursorModelParameter[] {
+	if (context === undefined) return parameters;
+	const retained = parameters.filter(({ id }) => id !== 'context');
+	return [{ id: 'context', value: context }, ...retained];
+}
+
 /** Resolve a Pi family and thinking level into Cursor's requested-model wire fields. */
 export function resolveRequestedModel(
 	model: { readonly id: string; readonly thinkingLevelMap?: ThinkingLevelMap },
@@ -90,7 +99,13 @@ export function resolveRequestedModel(
 ): CursorRequestedModel {
 	const modelId = selectedWireModel(model, flags.reasoning);
 	const captured = specialSelections[modelId];
-	if (captured !== undefined) return { ...captured, maxMode: flags.maxMode };
+	if (captured !== undefined) {
+		return {
+			...captured,
+			maxMode: flags.maxMode,
+			parameters: withContext(captured.parameters, flags.context),
+		};
+	}
 
 	const match = effortSuffix.exec(modelId);
 	const base = match?.[1];

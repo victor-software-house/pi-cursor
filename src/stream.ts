@@ -61,6 +61,20 @@ function cursorMaxMode(model: Model<'cursor-inference'>, options?: SimpleStreamO
 		});
 }
 
+function cursorContext(
+	model: Model<'cursor-inference'>,
+	options?: SimpleStreamOptions,
+): string | undefined {
+	const value =
+		options?.samplingParams?.['cursorContext'] ?? model.samplingParams?.['cursorContext'];
+	return match(value)
+		.with(undefined, () => undefined)
+		.with(P.string, (context) => context)
+		.otherwise(() => {
+			throw new Error('Cursor sampling parameter cursorContext must be a string');
+		});
+}
+
 function optionalNumber(value: unknown, name: string): number | undefined {
 	return match(value)
 		.with(undefined, () => undefined)
@@ -108,6 +122,7 @@ export function streamCursor(
 			const invocationId = (runtime.createInvocationId ?? (() => crypto.randomUUID()))();
 			const reasoning = typeof options.reasoning === 'string' ? options.reasoning : undefined;
 			const maxMode = cursorMaxMode(model, options);
+			const modelContext = cursorContext(model, options);
 			const request = buildInferenceRequest(
 				context,
 				omitUndefined({
@@ -123,7 +138,14 @@ export function streamCursor(
 			const runRequest = create(RunInferenceClientMessageSchema, {
 				message: {
 					case: 'runRequest',
-					value: buildInferenceRunRequest(model, context, sessionId, reasoning, maxMode),
+					value: buildInferenceRunRequest(
+						model,
+						context,
+						sessionId,
+						reasoning,
+						maxMode,
+						modelContext,
+					),
 				},
 			});
 			const mapper = new CursorInferenceMapper(
@@ -138,7 +160,7 @@ export function streamCursor(
 					: runtime.runtime;
 			await runtimeForToken.invoke(
 				sessionId,
-				inferenceRoutingKey(model, reasoning, maxMode),
+				inferenceRoutingKey(model, reasoning, maxMode, modelContext),
 				runRequest,
 				invocationId,
 				request,

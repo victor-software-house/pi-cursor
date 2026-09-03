@@ -250,11 +250,12 @@ export function inferenceRequestedModel(
 	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
 	maxMode = false,
+	context?: string,
 ): InferenceRequestedModel {
 	// Cursor IDE 3.18.9 stores max mode as explicit model-selection state. Ordinary
 	// composer/cmd-k/plan/spec/deep-search/quick-agent defaults are false; only the
 	// separate background-composer default is true. Never turn it on implicitly.
-	const requested = resolveRequestedModel(model, omitUndefined({ maxMode, reasoning }));
+	const requested = resolveRequestedModel(model, omitUndefined({ maxMode, reasoning, context }));
 	return create(InferenceRequestedModelSchema, {
 		modelId: requested.modelId,
 		maxMode: requested.maxMode,
@@ -268,8 +269,9 @@ export function inferenceRoutingKey(
 	model: Model<'cursor-inference'>,
 	reasoning: string | undefined,
 	maxMode = false,
+	context?: string,
 ): string {
-	const requested = inferenceRequestedModel(model, reasoning, maxMode);
+	const requested = inferenceRequestedModel(model, reasoning, maxMode, context);
 	return JSON.stringify({
 		modelId: requested.modelId,
 		maxMode: requested.maxMode,
@@ -283,11 +285,12 @@ export function buildInferenceRunRequest(
 	sessionId: string,
 	reasoning: string | undefined,
 	maxMode = false,
+	modelContext?: string,
 ): RunInferenceRunRequest {
 	if (sessionId === '') throw new Error('Cursor managed inference requires a stable Pi session id');
 	return create(RunInferenceRunRequestSchema, {
 		conversationId: sessionId,
-		requestedModel: inferenceRequestedModel(model, reasoning, maxMode),
+		requestedModel: inferenceRequestedModel(model, reasoning, maxMode, modelContext),
 		routingConversation: routingConversation(context),
 		agentMode: 'agent',
 	});

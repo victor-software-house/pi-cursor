@@ -28,7 +28,6 @@ const responseLimit = 4 * 1024 * 1024;
 const timeoutMs = 10_000;
 const cacheMs = 10 * 60 * 1_000;
 const defaultContextWindow = 200_000;
-const oneMillionContextWindow = 1_000_000;
 const defaultMaxTokens = 64_000;
 const effortSuffix = /^(.*)-(none|minimal|low|medium|high|xhigh|extra-high|max)(-fast)?$/u;
 const levels: Record<string, keyof ThinkingLevelMap> = {
@@ -184,6 +183,8 @@ interface ModelFamily {
 	readonly members: { readonly model: ModelDetails; readonly level: keyof ThinkingLevelMap }[];
 }
 
+type AvailableModel = AvailableModelsResponse['models'][number];
+
 function familyFor(model: ModelDetails): {
 	readonly id: string;
 	readonly level: keyof ThinkingLevelMap;
@@ -214,7 +215,68 @@ function displayName(model: ModelDetails): string {
 	return model.displayName || model.displayNameShort || model.displayModelId || model.modelId;
 }
 
-function providerModel(family: ModelFamily, baseUrl: string): Model<'cursor-inference'> {
+function baseModelFor(
+	family: ModelFamily,
+	models: readonly AvailableModel[],
+): AvailableModel | undefined {
+	const memberIds = new Set(family.members.map(({ model }) => model.modelId));
+	return models.find(
+		(model) =>
+			model.name === family.id ||
+			model.idAliases.includes(family.id) ||
+			model.legacySlugs.some((slug) => memberIds.has(slug)) ||
+			model.variants.some((variant) =>
+				variant.legacySlug === undefined ? false : memberIds.has(variant.legacySlug),
+			),
+	);
+}
+
+function tooltipText(tooltip: AvailableModel['tooltipData']): string {
+	return tooltip === undefined
+		? ''
+		: [
+				tooltip.primaryText,
+				tooltip.secondaryText,
+				tooltip.tertiaryText,
+				tooltip.markdownContent ?? '',
+			].join('\n');
+}
+
+function hasDistinctMaxMode(model: AvailableModel): boolean {
+	if (model.supportsMaxMode !== true) return false;
+	if (
+		model.contextTokenLimitForMaxMode !== undefined &&
+		model.contextTokenLimitForMaxMode !== model.contextTokenLimit
+	) {
+		return true;
+	}
+	if (tooltipText(model.tooltipDataForMaxMode) !== tooltipText(model.tooltipData)) return true;
+	if (model.variants.some((variant) => variant.isMaxMode)) return true;
+	const normal = model.variants.find((variant) => variant.isDefaultNonMaxConfig === true);
+	const max = model.variants.find((variant) => variant.isDefaultMaxConfig === true);
+	return normal !== undefined && max !== undefined && normal !== max;
+}
+
+function variantContext(model: AvailableModel, maxMode: boolean): string | undefined {
+	const variant = model.variants.find((candidate) =>
+		maxMode ? candidate.isDefaultMaxConfig === true : candidate.isDefaultNonMaxConfig === true,
+	);
+	return variant?.parameterValues.find((parameter) => parameter.id === 'context')?.value;
+}
+
+function contextWindow(model: AvailableModel | undefined, maxMode: boolean): number {
+	const captured = maxMode
+		? (model?.contextTokenLimitForMaxMode ?? model?.contextTokenLimit)
+		: model?.contextTokenLimit;
+	return captured !== undefined && captured > 0 ? captured : defaultContextWindow;
+}
+
+function providerModel(
+	family: ModelFamily,
+	baseUrl: string,
+	base: AvailableModel | undefined,
+	maxMode: boolean,
+): Model<'cursor-inference'> {
 	const representative =
 		preferredLevels.flatMap((level) =>
 			family.members.filter((member) => member.level === level),
@@ -222,27 +284,35 @@ function providerModel(family: ModelFamily, baseUrl: string): Model<'cursor-infe
 	if (representative === undefined) throw new Error(`Cursor model family '${family.id}' is empty`);
 	const thinkingLevelMap: ThinkingLevelMap = {};
 	for (const member of family.members) thinkingLevelMap[member.level] = member.model.modelId;
-	const reasoning = Object.entries(thinkingLevelMap).some(
+	const inferredReasoning = Object.entries(thinkingLevelMap).some(
 		([level, modelId]) => level !== 'off' && typeof modelId === 'string',
 	);
-	const name = displayName(representative.model).replace(
-		/ (?:None|Minimal|Low|Medium|High|Extra High|Max)(?= Fast$|$)/u,
-		'',
-	);
+	const reasoning = base?.supportsThinking ?? inferredReasoning;
+	const capturedName =
+		base?.clientDisplayName === undefined || base.clientDisplayName === ''
+			? displayName(representative.model).replace(
+					/ (?:None|Minimal|Low|Medium|High|Extra High|Max)(?= Fast$|$)/u,
+					'',
+				)
+			: base.clientDisplayName;
+	const context = base === undefined ? undefined : variantContext(base, maxMode);
+	const samplingParams = {
+		...(maxMode ? { cursorMaxMode: true } : {}),
+		...(context === undefined ? {} : { cursorContext: context }),
+	};
 	return {
-		id: family.id,
-		name,
+		id: `${family.id}${maxMode ? '-max' : ''}`,
+		name: `${capturedName}${maxMode ? ' Max' : ''}`,
 		provider: 'cursor',
 		api: 'cursor-inference',
 		baseUrl,
 		reasoning,
-		input: ['text', 'image'],
+		input: base?.supportsImages === false ? ['text'] : ['text', 'image'],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: family.members.some(({ model }) => /\b1m\b/iu.test(displayName(model)))
-			? oneMillionContextWindow
-			: defaultContextWindow,
+		contextWindow: contextWindow(base, maxMode),
 		maxTokens: defaultMaxTokens,
-		...(Object.keys(thinkingLevelMap).length === 0 ? {} : { thinkingLevelMap }),
+		...(Object.keys(samplingParams).length === 0 ? {} : { samplingParams }),
+		...(reasoning && Object.keys(thinkingLevelMap).length > 0 ? { thinkingLevelMap } : {}),
 	};
 }
 
@@ -257,7 +327,15 @@ export function catalogModels(
 	origin: string,
 ): Model<'cursor-inference'>[] {
 	if (base.models.length === 0) throw new Error('Cursor AvailableModels returned no models');
-	const models = modelFamilies(usable.models).map((family) => providerModel(family, origin));
+	const models = modelFamilies(usable.models).flatMap((family) => {
+		const baseModel = baseModelFor(family, base.models);
+		return [
+			providerModel(family, origin, baseModel, false),
+			...(baseModel !== undefined && hasDistinctMaxMode(baseModel)
+				? [providerModel(family, origin, baseModel, true)]
+				: []),
+		];
+	});
 	if (models.length === 0) throw new Error('Cursor GetUsableModels returned no models');
 	const defaultId = defaultModel.model?.modelId;
 	if (defaultId !== undefined && defaultId !== '') {

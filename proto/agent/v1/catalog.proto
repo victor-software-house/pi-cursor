@@ -6,6 +6,13 @@ package agent.v1;
 
 message ThinkingDetails {}
 
+message RequestedModel {
+  message ModelParameterValue {
+    string id = 1;
+    string value = 2;
+  }
+}
+
 message ModelDetails {
   string model_id = 1;
   optional ThinkingDetails thinking_details = 2;

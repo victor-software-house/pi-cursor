@@ -153,7 +153,7 @@ describe('managed inference Pi stream', () => {
 		]);
 	});
 
-	test('defaults max mode off and enables it only through the Cursor sampling parameter', async () => {
+	test('defaults max mode off and enables catalog-selected Max Mode and context', async () => {
 		const routeKeys: string[] = [];
 		await collect(
 			{ messages: [{ role: 'user', content: 'normal', timestamp: 1 }] },
@@ -165,12 +165,12 @@ describe('managed inference Pi stream', () => {
 			{
 				apiKey: 'token',
 				sessionId: 'pi-session-max',
-				samplingParams: { cursorMaxMode: true },
+				samplingParams: { cursorMaxMode: true, cursorContext: '1m' },
 			},
 		);
 		expect(routeKeys).toEqual([
 			'{"modelId":"composer-2.5","maxMode":false,"parameters":[{"id":"fast","value":"false"}]}',
-			'{"modelId":"composer-2.5","maxMode":true,"parameters":[{"id":"fast","value":"false"}]}',
+			'{"modelId":"composer-2.5","maxMode":true,"parameters":[{"id":"context","value":"1m"},{"id":"fast","value":"false"}]}',
 		]);
 	});
 
