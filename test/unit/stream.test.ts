@@ -154,6 +154,44 @@ describe('managed inference Pi stream', () => {
 		]);
 	});
 
+	test('fails when final responseInfo omits a completed streamed tool', async () => {
+		const complete = response('ignored', {
+			response: {
+				case: 'toolCallPart',
+				value: create(InferenceToolCallStreamPartSchema, {
+					toolCallId: 'tool-1',
+					toolName: TOOL.name,
+					args: '{"left":"A","right":"B"}',
+					isComplete: true,
+				}),
+			},
+		});
+		const final = response('ignored', {
+			response: {
+				case: 'responseInfo',
+				value: create(InferenceResponseInfoSchema, {
+					messages: [
+						create(InferenceResponseMessageSchema, {
+							role: InferenceMessageRole.ASSISTANT,
+							content: 'tool omitted',
+						}),
+					],
+				}),
+			},
+		});
+		const { result } = await collect(
+			{
+				messages: [{ role: 'user', content: 'join', timestamp: 1 }],
+				tools: [TOOL],
+			},
+			runtimeWith([complete, final]),
+		);
+		expect(result).toMatchObject({
+			stopReason: 'error',
+			errorMessage: 'Cursor final response tool set disagrees with completed streamed tools',
+		});
+	});
+
 	test('defaults max mode off and enables catalog-selected Max Mode and context', async () => {
 		const routeKeys: string[] = [];
 		await collect(

@@ -13,6 +13,7 @@ import {
 	InferenceMessageRole,
 	InferenceStreamErrorType,
 } from '@cursor/gen/aiserver/v1/inference_pb';
+import { reconcileFinalContent } from '@cursor/reconciliation';
 import type {
 	AssistantMessage,
 	AssistantMessageEventStream,
@@ -115,31 +116,6 @@ function errorMessage(
 		return `context_length_exceeded: ${message}`;
 	}
 	return message;
-}
-
-function mergeFinalContent(
-	streamed: AssistantMessage['content'],
-	final: AssistantMessage['content'],
-): AssistantMessage['content'] {
-	const finalThinking = final.filter((block) => block.type === 'thinking');
-	if (finalThinking.some((block) => block.thinking.trim() !== '')) return final;
-	const streamedThinking = streamed.filter(
-		(block): block is ThinkingContent => block.type === 'thinking' && block.thinking.trim() !== '',
-	);
-	if (streamedThinking.length === 0) return final;
-	const mergedThinking = streamedThinking.map((block, index) => {
-		const metadata = finalThinking[index];
-		return metadata === undefined
-			? block
-			: {
-					...block,
-					...omitUndefined({
-						thinkingSignature: metadata.thinkingSignature,
-						redacted: metadata.redacted,
-					}),
-				};
-	});
-	return [...mergedThinking, ...final.filter((block) => block.type !== 'thinking')];
 }
 
 /** Maps one correlated managed invocation onto Pi's provider event contract. */
@@ -245,7 +221,6 @@ export class CursorInferenceMapper {
 
 	#captureFinalResponse(info: InferenceResponseInfo): void {
 		const content: AssistantMessage['content'] = [];
-		let substantive = false;
 		const roleCounts: Record<string, number> = {};
 		for (const message of info.messages) {
 			const role = responseRole(message.role);
@@ -262,11 +237,9 @@ export class CursorInferenceMapper {
 						redacted: part.isRedacted ? true : undefined,
 					}),
 				);
-				if (part.text.trim() !== '') substantive = true;
 			}
 			if (message.content !== undefined && message.content.trim() !== '') {
 				content.push({ type: 'text', text: message.content });
-				substantive = true;
 			}
 			for (const tool of message.toolCalls) {
 				if (tool.toolCallId === '' || tool.toolName === '') {
@@ -281,10 +254,9 @@ export class CursorInferenceMapper {
 					name: tool.toolName,
 					arguments: finalToolArguments(tool),
 				});
-				substantive = true;
 			}
 		}
-		if (substantive) this.#finalContent = content;
+		this.#finalContent = content;
 		this.#responseDetails = omitUndefined({
 			createdAt: info.createdAt.toString(),
 			supportsSelfSummary: info.supportsSelfSummary,
@@ -459,12 +431,15 @@ export class CursorInferenceMapper {
 		if (this.#tools.size > 0) {
 			throw new Error('Cursor invocation ended with incomplete tool calls');
 		}
-		if (this.#finalContent !== undefined) {
-			const merged = mergeFinalContent(this.#output.content, this.#finalContent);
-			this.#output.content.splice(0, this.#output.content.length, ...merged);
+		const reconciled = reconcileFinalContent(this.#output.content, this.#finalContent);
+		this.#output.content.splice(0, this.#output.content.length, ...reconciled.content);
+		const finalizedTools = this.#output.content.filter(({ type }) => type === 'toolCall');
+		if (this.#completedTools.size > 0 && finalizedTools.length === 0) {
+			throw new Error('Cursor toolUse completed without a finalized tool call');
 		}
 		const details: Record<string, unknown> = {
 			arms: Object.fromEntries(this.#responseKinds),
+			reconciliation: reconciled.summary,
 		};
 		if (this.#providerMetadata !== undefined) details['providerMetadata'] = this.#providerMetadata;
 		if (this.#imageDescriptions.length > 0) {
@@ -486,11 +461,7 @@ export class CursorInferenceMapper {
 			return { stopReason: 'error', errorMessage: this.#streamError.message };
 		}
 		return {
-			stopReason:
-				this.#finalContent?.some(({ type }) => type === 'toolCall') === true ||
-				this.#completedTools.size > 0
-					? 'toolUse'
-					: 'stop',
+			stopReason: finalizedTools.length > 0 ? 'toolUse' : 'stop',
 		};
 	}
 }

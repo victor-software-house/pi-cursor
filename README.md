@@ -23,6 +23,10 @@ implementation. Enabling the first functional release requires a separate operat
   usage, generic tool-call argument deltas, and tool continuations.
 - Final response reconciliation preserves routed thinking text when Cursor's final message carries
   only redacted or signature-only reasoning metadata.
+- Completed streamed and final tools must match by ID, name, and deep-equal arguments before Pi can
+  execute them; final text differences are recorded structurally without prefix heuristics.
+- Multi-block reasoning metadata matches only by exact signature or exact text, with an unambiguous
+  one-to-one fallback; unmatched metadata stays separate instead of attaching by array index.
 - `/cursor` and `/cursor usage` account usage pane with Summary and Models views.
 
 ## Usage pane
@@ -47,7 +51,7 @@ captured context parameter automatically. Advanced callers may override the Curs
 ## Verification
 
 `mise run verify` is the deterministic gate. It runs formatting/lint checks, TypeScript checking,
-87 unit tests, the minified build, publint, the package whitelist, Node and Bun imports of the
+95 unit tests, the minified build, publint, the package whitelist, Node and Bun imports of the
 extracted tarball, and Pi's real extension loader. The loader proof requires the packed artifact to
 register `/cursor` and exactly one native `cursor` provider. Packed CLI checks also require
 `/cursor help` to emit plain text in print mode and a custom message event in JSON mode.
@@ -59,6 +63,8 @@ A fresh-account live proof on 2026-09-03 established:
 - Composer 2.5 returns text through the production RunInference transport;
 - the isolated Pi TUI renders both Summary and Models, switches with Tab, closes with `q`, and
   displays optional aggregate timeouts as named partial misses.
+- every live inference result carries payload-free text/reasoning/tool reconciliation diagnostics;
+- a paid arbitrary-tool turn proved streamed/final tool equality and continued with the local result.
 
 The implementation is pinned to Cursor IDE 3.18.9 for managed inference and
 `cursor-agent 2026.09.02-fa0c06e` for catalog/usage evidence. Darwin host identity is verified

@@ -63,6 +63,7 @@ src/
   request.ts            Pi Context and arbitrary tools to RunInference messages
   transport.ts          HTTP/2 session, routed runs, invocation multiplexing, shutdown
   stream.ts             RunInference response arms to Pi assistant events
+  reconciliation.ts     strict streamed/final text, reasoning, and tool reconciliation
   dashboard.ts          measured DashboardService unary transport
   usage.ts              standard/Enterprise usage aggregation and partial misses
   usage-view.ts         unit-correct text, bars, sparklines, and model rows
@@ -99,6 +100,11 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
   provider metadata, image descriptions, and diagnostics.
 - Final response reconciliation keeps final text/tools authoritative while retaining streamed
   thinking when final reasoning contains only redacted or signature metadata.
+- Completed streamed tools must match final tools by ID, name, and deep-equal arguments. Text
+  differences produce payload-free structural diagnostics rather than prefix matching or warnings.
+- Multi-block reasoning metadata matches by exact signature or exact text. Only a single unmatched
+  metadata block and single unmatched text block may merge by cardinality; every other unmatched
+  metadata block remains separate.
 
 ### 2. OAuth and provider registration
 
@@ -135,8 +141,8 @@ The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
 `mise run verify` passes with:
 
 - Biome, oxlint, actionlint, and TypeScript;
-- 87 unit tests with one explicit host-only identity test skipped;
-- a minified 86.09 kB ESM bundle plus entry declaration;
+- 95 unit tests with one explicit host-only identity test skipped;
+- a minified 89.34 kB ESM bundle plus entry declaration;
 - publint and exact tarball whitelist checks;
 - forbidden package/path/source-map scans and bundle-size limits;
 - extracted-artifact imports under Node and Bun, each with a five-second process guard;
@@ -154,6 +160,9 @@ passed:
 - one bounded Composer 2.5 production RunInference response with a 256-token output cap;
 - a bounded `default` router response whose non-empty streamed thinking remains in the finalized
   assistant message;
+- every live inference result asserting the runtime's structural reconciliation diagnostic;
+- a paid arbitrary-tool turn whose completed streamed/final tools match exactly before its local
+  result continues on the same routed run;
 - an isolated visible Pi TUI in a Herdr pane showing live Enterprise Summary and Models views;
 - Tab switching and `q` close;
 - visible partial-failure handling when one aggregate sample timed out.
