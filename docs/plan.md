@@ -20,7 +20,8 @@ evidence remain preserved without claiming a supported or installable provider.
 ## Non-goals
 
 - `agent.v1.AgentService/Run`, MCP projection, exec bridge, Cursor-native tools, any compatibility mode.
-- Usage/billing dashboard, `/cursor` command surface, multi-account, 1Password or SQLite storage.
+- Usage/billing dashboard, multi-account, 1Password or SQLite storage. (The `/cursor usage` pane was
+  initially excluded and is now in scope per the 2026-09-02 operator decision — see slice 3b.)
 - Packet-level HTTP/2 claims (DATA boundaries, HPACK, compression bytes, header order).
 - Reproducing the private repository's DMG extraction and drift gates.
 
@@ -145,6 +146,20 @@ Each slice ends committed, pushed, and green on `mise run verify`.
   Node CLI and the checksum-verified official standalone Bun binary with `--no-extensions -e`,
   asserting the provider registers with a synthetic token against a loopback transport.
 - Verify: `mise run verify` includes build, pack:verify, unit, and packed smoke.
+
+### 3b. Usage pane (added 2026-09-02, operator decision)
+
+- Port the private stack's measured `/cursor usage` surface, single-account: the DashboardService
+  closure generated from the pinned CLI schema (`dashboard.proto` selection), the `node:https`
+  Connect unary transport with the 2026-08-18 capture's measured body framings and fixed headers,
+  the usage data layer with renderer-quoted units (hard-limit dollars, int32-max unlimited
+  sentinel, cents fields, 0–100 percents), the Summary/Models tabbed TUI pane (`r` refresh,
+  `q`/Esc close, Tab switches), and a `/cursor` command whose `usage` verb (and bare form) opens it.
+- `readCliConfig` is not ported: the backend URL is the pinned `api2.cursor.sh` and ghost mode is
+  the workbench default `implicit-false`. Private build dependencies are bundled like
+  `pi-type-kit`; the pane imports only Pi peers at runtime.
+- Verify: unit tests for the pure formatting/key logic and the dashboard framing against a local
+  server; `mise run dev` shows the pane with live data.
 
 ### 5. Live proof
 

@@ -28,5 +28,7 @@ that acts on it.
 - Never publish another npm version, create a Version Packages PR, or replace the blank `0.0.0`
   placeholder. Do not resume release work without a new explicit operator decision.
 - Port only provider registration, OAuth login/refresh, host identity, catalog preflight,
-  RunInference request/transport/stream mapping, and narrow tests. Do not carry commands, usage UI,
-  database/account abstractions, keychain/1Password support, extraction machinery, or broad protos.
+  RunInference request/transport/stream mapping, the `/cursor usage` pane (added 2026-09-02 by
+  operator decision, ported from the private stack's measured implementation), and narrow tests. Do
+  not carry account/database abstractions, multi-account, keychain/1Password support, extraction
+  machinery, or broad protos.
