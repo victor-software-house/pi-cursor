@@ -1,23 +1,27 @@
 # pi-cursor-inference
 
-> ▲ **Private proof of concept, resumed 2026-09-02.** The repository is private. No functional npm
-> release exists; `0.0.0` remains a blank name reservation.
+> ▲ **Release candidate, not published.** The repository and package remain private. The public
+> `pi-cursor-inference@0.0.0` package is still a blank name reservation and does not contain this
+> provider.
 
-`pi-cursor-inference@0.0.0` is a blank public placeholder that reserves the npm name. It does not
-register a provider. Do not install it expecting Cursor inference support.
+This repository implements Cursor as an unofficial plain inference provider for
+[Pi](https://github.com/earendil-works/pi-mono) over
+`aiserver.v1.InferenceService/RunInference`. Cursor supplies inference while Pi owns the complete
+conversation, arbitrary tool schemas, tool execution, branching, and transcript.
 
-This private repository implements Cursor as a plain inference provider for
-[Pi](https://github.com/badlogic/pi-mono), using
-`aiserver.v1.InferenceService/RunInference`. Development has resumed with native OAuth login and
-dynamic model discovery; release automation stays disabled pending an explicit operator decision.
+Publication is intentionally disabled. Do not install the `0.0.0` npm placeholder expecting this
+implementation. Enabling the first functional release requires a separate operator decision.
 
-## Configuration
+## Features
 
-Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
-Set the Cursor-specific model/request sampling parameter `cursorMaxMode` to `true` to enable it.
-The flag participates in Cursor's variant resolution and is sent as
-`InferenceRequestedModel.max_mode`; Cursor returns the concrete resolved variant in `runReady` and
-`responseInfo`.
+- Native Pi OAuth through `/login cursor`, plus `PI_CURSOR_TOKEN` for headless use.
+- Dynamic model discovery from `AvailableModels`, `GetUsableModels`, and
+  `GetDefaultModelForCli`.
+- Catalog-backed context windows, image/thinking capabilities, and distinct Max Mode rows only
+  when Cursor advertises a meaningful variant difference.
+- Streaming thinking text when the provider supplies it, opaque reasoning signatures, text,
+  usage, generic tool-call argument deltas, and tool continuations.
+- `/cursor` and `/cursor usage` account usage pane with Summary and Models views.
 
 ## Usage pane
 
@@ -26,17 +30,48 @@ reset date, included and on-demand usage for ordinary plans, or current/previous
 for Enterprise plans. When the backend returns a per-model breakdown, **Tab** switches between
 **Summary** and **Models**; `r` refreshes and `q`/Esc closes the pane.
 
-The pane reproduces Cursor's captured DashboardService calls and renderer-defined units. It does
-not infer prices from model tokens or invent values for missing samples. In print and JSON modes,
-`/cursor usage` emits the same information as plain text instead of requiring a TUI.
+The pane uses captured DashboardService calls and renderer-defined units. It does not infer prices
+from model tokens or invent values for missing samples. Optional failed calls remain visible as
+named misses while available usage still renders. Outside TUI mode, print writes plain text, JSON
+emits a custom message event, and RPC uses a notification.
 
-## Preserved scope
+## Configuration
 
-- Native Pi provider and Cursor browser login flow.
-- Cursor supplies inference; Pi owns context, tools, execution, and transcript.
-- Streaming thinking, text, usage, tool-call arguments, and tool continuations.
-- Single-account `/cursor` usage pane with Summary and Models views.
+Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
+Catalog entries with a distinct Max Mode appear as separate `-max` models and carry Cursor's
+captured context parameter automatically. Advanced callers may override the Cursor-specific
+`cursorMaxMode` and `cursorContext` sampling parameters per request.
+
+## Verification
+
+`mise run verify` is the deterministic gate. It runs formatting/lint checks, TypeScript checking,
+85 unit tests, the minified build, publint, the package whitelist, Node and Bun imports of the
+extracted tarball, and Pi's real extension loader. The loader proof requires the packed artifact to
+register `/cursor` and exactly one native `cursor` provider. Packed CLI checks also require
+`/cursor help` to emit plain text in print mode and a custom message event in JSON mode.
+
+A fresh-account live proof on 2026-09-03 established:
+
+- all three catalog surfaces decode and produce selectable models;
+- DashboardService usage loads without exposing account values in test output;
+- Composer 2.5 returns text through the production RunInference transport;
+- the isolated Pi TUI renders both Summary and Models, switches with Tab, closes with `q`, and
+  displays optional aggregate timeouts as named partial misses.
+
+The implementation is pinned to Cursor IDE 3.18.9 for managed inference and
+`cursor-agent 2026.09.02-fa0c06e` for catalog/usage evidence. Darwin host identity is verified
+against Cursor's algorithm. Linux and Windows identity branches have deterministic fixtures but
+have not been host-verified. Packet-level HTTP/2 framing and future Cursor server compatibility are
+not claimed.
+
+## Scope boundary
+
 - No `AgentService/Run`, Cursor-native tools, MCP projection, or agent bridge.
+- No multi-account database, keychain/1Password reader, or installed-IDE dependency.
+- No invented Grok thinking summary: current RunInference measurements provide an opaque
+  continuation signature but no reasoning text for Grok 4.6.
+- No publication workflow, public-repository transition, version bump, or npm publish without a
+  new operator decision.
 
-The implementation plan and evidence boundaries are retained in
-[`docs/plan.md`](docs/plan.md).
+See [`docs/plan.md`](docs/plan.md) for completed slices and remaining publication gates, and
+[`docs/decisions.md`](docs/decisions.md) for protocol and scope decisions.

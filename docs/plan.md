@@ -1,197 +1,186 @@
-# pi-cursor plan
+# pi-cursor release-readiness plan
 
-> **Stopped 2026-09-02.** This historical plan is retained as research context, not an active
-> roadmap. The repository remains private and no functional package release is planned.
+> **Status:** Implementation and release-candidate proof completed 2026-09-03. Publication remains
+> disabled until the operator explicitly authorizes it.
 
-Decisions that shaped this plan: [`decisions.md`](decisions.md).
+Decisions that govern this plan: [`decisions.md`](decisions.md).
 
 ## Outcome
 
-`pi install npm:pi-cursor-inference` gives a Pi user a `cursor` provider that logs in with `/login cursor`,
-lists the account's Cursor models, and streams thinking, text, usage, and incremental tool-call
-arguments through `aiserver.v1.InferenceService/RunInference`. Pi owns every tool: it sends its
-complete context and active tool schemas, executes calls through its ordinary loop, and continues
-on the same routed run. No agent bridge, no Cursor-owned tools, no hidden checkpoint state.
+The repository contains an installable Pi extension artifact that registers a native `cursor`
+provider and `/cursor` usage command. It uses Cursor's
+`aiserver.v1.InferenceService/RunInference` transport. Cursor supplies inference; Pi owns complete
+context, arbitrary tool schemas, execution, continuation, branching, and transcript.
 
-The original completion target was an exact published `pi-cursor-inference@0.0.1` installed into a
-clean Pi 0.84.4. That target was cancelled before release. The implemented source and verification
-evidence remain preserved without claiming a supported or installable provider.
+The functional implementation is not the public npm package yet. The existing
+`pi-cursor-inference@0.0.0` is a blank name reservation. The repository stays private,
+`package.json` stays `private: true`, and no release workflow or functional npm version is created
+without a separate operator decision.
+
+## Scope
+
+- Native Pi OAuth login and refresh, plus `PI_CURSOR_TOKEN` for headless use.
+- Host-derived Cursor machine identity without reading an installed IDE.
+- Three-surface catalog preflight and fail-closed dynamic model refresh.
+- Catalog-backed context, image/thinking capabilities, and meaningful Max Mode rows.
+- RunInference request, HTTP/2 transport, multiplexing, stream mapping, and tool continuation.
+- Single-account DashboardService usage data and `/cursor` Summary/Models pane.
+- Deterministic unit, protocol, build, packed-loader, and package-shape gates.
+- Bounded local-only live catalog, usage, provider, and visible TUI proof.
 
 ## Non-goals
 
-- `agent.v1.AgentService/Run`, MCP projection, exec bridge, Cursor-native tools, any compatibility mode.
-- Usage/billing dashboard, multi-account, 1Password or SQLite storage. (The `/cursor usage` pane was
-  initially excluded and is now in scope per the 2026-09-02 operator decision — see slice 3b.)
-- Packet-level HTTP/2 claims (DATA boundaries, HPACK, compression bytes, header order).
-- Reproducing the private repository's DMG extraction and drift gates.
+- `agent.v1.AgentService/Run`, Cursor-native tools, MCP projection, or an agent bridge.
+- Multi-account storage, SQLite, keychain/1Password readers, or installed-IDE extraction.
+- Reproducing the private repository's broad capture and drift machinery.
+- Packet-level HTTP/2 claims such as DATA boundaries, HPACK state, compression bytes, or original
+  header order.
+- Inventing Grok thinking text when RunInference supplies only an opaque continuation signature.
+- Publication, repository visibility changes, versioning, tags, or npm replacement in this plan.
 
-## Source facts the plan stands on
+## Evidence baseline
 
-| Fact | Source |
+| Contract | Pinned evidence |
 |:--|:--|
-| Wire schema: 54 messages, 4 enums, `InferenceService` with BiDi `RunInference` | Cursor IDE 3.18.9, commit `2ba48ff3f7514cc4643c52ca9f7b3173d9b66130`, modules `657.js:8844`, `657.js:4410` |
-| Transport headers, cookie, checksum algorithm | `657.js:41033` |
-| Run handshake, invocation multiplexing, tool mapping, `{ jsonSchema }` tool envelope | `675.js:40675` |
-| Machine identity derivation | `main.js` `id.js` / `macAddress.js` / `telemetryUtils.js` (same in 3.18.9 and 3.18.25); local recomputation equals the IDE's stored values |
-| Login: `loginDeepControl` challenge, `GET /auth/poll?uuid=&verifier=`, 60-day access JWT | captured `cursor-agent 2026.08.25` login (private repo doc 2026-08-25) |
-| Token refresh: `POST /oauth/token` refresh-token grant (workbench contract, measured live); refresh JWT durable and non-rotating | measured 2026-09-02: 200 with fresh 60-day access JWT; `exchange_user_api_key` is API-key-only (401 for both JWTs) and no CLI/agent-host/SDK client refreshes a browser login |
-| Catalog RPCs: `AvailableModels`, `GetUsableModels`, `GetDefaultModelForCli` | current CLI captures; `GetServerConfig` is not an inference authority |
-| Live proof of the approach | private provider streamed arbitrary tools with argument deltas and continuation on Composer 2.5, GPT-5.6 Sol, Claude Opus 5 Thinking, Gemini 3.7 Flash, Cursor Grok 4.6 |
+| RunInference schema and service | Cursor IDE 3.18.9, commit `2ba48ff3f7514cc4643c52ca9f7b3173d9b66130`, modules `657.js:8844` and `657.js:4410` |
+| Transport headers, cookie, checksum | Cursor IDE 3.18.9 module `657.js:41033` |
+| Run multiplexing and tool mapping | Cursor IDE 3.18.9 module `675.js:40675` |
+| Login and workbench refresh | Captured login plus pinned IDE 3.18.9 workbench; live refresh measured 2026-09-02 |
+| Catalog and DashboardService | `cursor-agent 2026.09.02-fa0c06e` selected schema and application-message captures |
+| Pi extension/provider contract | `@earendil-works/pi-*` 0.84.4 |
+| Grok reasoning limitation | Bounded RunInference measurements: opaque signature present, reasoning text absent |
 
 ## Architecture
 
 ```text
 src/
-  index.ts              registerProvider: models from catalog, auth.oauth, stream = streamCursor
-  auth.ts               PKCE challenge, browser URL, /auth/poll, refresh, JWT expiry
-  identity.ts           machineId / macMachineId derivation (Cursor algorithm), UUID fallback
-  headers.ts            static IDE identity, checksum, cookie, client key, CR/LF rejection
-  transport.ts          node:http2 session per account, RunInference run registry, invocation
-                        multiplexer, cancel, finishRun, bounded shutdown
-  request.ts            Pi Context -> InferenceStreamRequest (system, user, images, assistant,
-                        reasoning, tool calls, tool results, tools with { jsonSchema })
-  stream.ts             server parts -> Pi events (thinking/text/toolcall deltas, usage, stop)
-  catalog.ts            captured Connect unary preflight, model decomposition, 10-minute cache
-  image.ts              image part validation
-  gen/                  @bufbuild/protobuf classes generated from proto/ (bundled, gitignored)
+  index.ts              extension entry; provider and command registration
+  auth.ts               browser login, poll, refresh, JWT expiry
+  identity.ts           host machine/mac identity and persisted UUID fallback
+  headers.ts            IDE request identity and checksum
+  catalog.ts            three unary catalog calls, family/base join, 10-minute cache
+  provider.ts           native Pi provider, auth, model refresh, runtime ownership
+  request.ts            Pi Context and arbitrary tools to RunInference messages
+  transport.ts          HTTP/2 session, routed runs, invocation multiplexing, shutdown
+  stream.ts             RunInference response arms to Pi assistant events
+  dashboard.ts          measured DashboardService unary transport
+  usage.ts              standard/Enterprise usage aggregation and partial misses
+  usage-view.ts         unit-correct text, bars, sparklines, and model rows
+  usage-panel.ts        keybinding-aware Summary/Models TUI component
+  command.ts            /cursor, /cursor usage, /cursor help
 proto/
-  aiserver/v1/inference.proto        exact reconstructed 3.18.9 schema
-  agent/v1/catalog.proto             selected CLI model request/response closure
-  aiserver/v1/catalog.proto          selected AvailableModels request/response closure
-docs/protocol/inference-service-3.18.9/
-  artifact-lock.json                 version, commit, URL, DMG sha256, module ids
-docs/
-  plan.md, decisions.md, protocol.md (wire contract summary + provenance)
+  agent/v1/catalog.proto
+  aiserver/v1/catalog.proto
+  aiserver/v1/dashboard.proto
+  aiserver/v1/inference.proto
+scripts/
+  dev.ts                isolated source TUI
+  pack-verify.ts        tarball, bundle, Node/Bun, and Pi-loader gate
 test/
-  unit/     identity fixtures, headers census, transport against a local HTTP/2 server,
-            request mapping, stream mapper, corpus replay, catalog decomposition, auth parsing
-  live/     gated: login poll parser against real endpoint, Composer round trip, model matrix
-  fixtures/ tool-roundtrip.json (synthetic, secret-free)
+  unit/                 deterministic behavior and protocol tests
+  live/                 credential- and CI-gated catalog, usage, and provider checks
 ```
 
-Bundled implementation dependencies: `@bufbuild/protobuf`, `@victor-software-house/pi-type-kit`
-(the sole permitted private build dependency), and only if schema validation requires it, `zod`.
-Import exact named helpers and verify tree shaking from the packed bundle. Pi peers
-`@earendil-works/pi-ai`, `pi-coding-agent`, and `pi-tui` at `0.84.4` remain external.
+The published whitelist is `package.json`, README, CHANGELOG, LICENSE,
+`dist/index.mjs`, and `dist/index.d.mts`. Generated protocol code and
+`@victor-software-house/pi-type-kit` helpers are bundled. Pi peers remain external.
 
-## Slices
+## Completed slices
 
-Each slice ends committed, pushed, and green on `mise run verify`.
+### 1. Protocol, identity, request, transport, and stream
 
-### 0. Scaffold and contract (this slice)
+- Selected RunInference closure pinned by source hashes and generated-message counts.
+- Cursor machine and MAC identity algorithm implemented for supported platforms.
+- Request mapping preserves full Pi context, images, arbitrary JSON Schema tools, tool results,
+  and cross-provider history.
+- Transport covers routed-run replacement, invocation multiplexing, cancellation, correlation,
+  retries, EOF, and shutdown.
+- Stream mapping preserves thinking text, opaque signatures, final response messages, usage,
+  provider metadata, image descriptions, and diagnostics.
 
-- Repository, mani registration, `docs/plan.md`, `docs/decisions.md`, `AGENTS.md`, `CLAUDE.md`.
-- VSH scaffold baseline (`pi-extension-scaffold`) adapted for public npm: `publishConfig.access: public`,
-  no GitHub Packages publish, Changesets + OIDC trusted publishing per `greenfield-release`.
-- `tsdown`: single entry, `minify: true`, `sourcemap: false`, entry-only declarations, `clean`,
-  Pi peers in `deps.neverBundle`; `files: ["dist", "README.md", "CHANGELOG.md", "LICENSE"]`.
-- Verify: `mise run verify` passes on an empty extension that registers nothing.
+### 2. OAuth and provider registration
 
-### 1. Protocol and identity
+- `/login cursor` uses the measured PKCE verifier-string challenge and workbench poll headers.
+- Refresh uses the measured IDE workbench `/oauth/token` grant and retains the durable refresh JWT.
+- Pi owns credential persistence and refresh. No custom credential store exists.
+- Provider model refresh fails closed and clears stale in-memory and persisted catalog rows.
 
-- Copy only `inference.proto` and `artifact-lock.json`; `buf.gen.yaml` generates only the
-  transitive `RunInferenceClientMessage` / `RunInferenceServerMessage` closure into `src/gen/`
-  (`erasable_syntax`, no `.js` import extension). Add the catalog closure later with the catalog
-  implementation, not speculatively here.
-- `identity.ts`: platform command table exactly as Cursor's `J6`, hardware-id normalisation exactly as
-  `H9e`, MAC selection exactly as `B9e`/`W9e`, SHA-256 hex; random-UUID fallback persisted under
-  `getAgentDir()/pi-cursor/identity.json` only when derivation fails.
-- `headers.ts`: checksum with minute stamp and both/one-id shapes; static IDE identity; os/arch from
-  process; 32-byte client key; header value validation.
-- Verify: unit tests with fixed inputs for every platform branch; a darwin test that recomputes the
-  values and, when `PI_CURSOR_IDE_STORAGE` points at a real `storage.json`, asserts equality;
-  checksum vector test against a value produced by the private implementation.
+### 3. Catalog metadata and Max Mode
 
-### 2. Transport, request, stream
+- Selectable `GetUsableModels` families join to `AvailableModels` rows through names, aliases,
+  legacy slugs, and variant legacy slugs.
+- Matching rows supply context windows, image support, and thinking support.
+- Grok 4.6 reports 256k and receives no redundant Max row because its captured normal and Max
+  metadata are equivalent.
+- GPT-5.6 Sol reports 272k normally and a distinct 1M `-max` row.
+- Catalog-selected context parameters flow into both the requested model and routing key.
+- Unmatched families retain conservative 200k fallback metadata.
 
-- Selectively port `inference-transport.ts`, `inference-request.ts`, `inference-stream.ts`,
-  `stream.ts`, and `image.ts`. Replace private helper imports with small local code at the owning
-  boundary; do not copy unrelated abstractions.
-- Verify: the private repository's transport matrix against a real local Node HTTP/2 server
-  (handshake, one `runReady`, interleaved and reverse completion, unknown/duplicate/late ids,
-  cancellation leaving siblings live, `finishRun` on routing change, heartbeats, compression, trailer,
-  data-after-trailer, EOF, GOAWAY, bounded shutdown); request matrix (system, user text/images,
-  assistant text/thinking/tool calls, tool results incl. image results, cross-provider history,
-  malformed tool schema rejection); `tool-roundtrip.json` replays to one `toolUse`, one correlated
-  continuation, final `stop`.
+### 4. `/cursor` usage surface
 
-### 3. Provider registration, catalog, login
+- `/cursor` and `/cursor usage` open the single-account usage surface; `/cursor help` prints the
+  compact command shape.
+- TUI mode provides Summary/Models, Tab switching, `r` refresh, configured cancel handling, and
+  `q` close.
+- Outside TUI mode, print writes plain text, JSON emits a custom message event, and RPC uses a
+  notification.
+- Standard plans render measured percentages and on-demand policy. Enterprise renders cumulative
+  current/previous spend and per-model breakdowns.
+- Optional call failures remain visible as named misses. Required-call failures fail visibly.
 
-- `catalog.ts`: `AvailableModels` + `GetUsableModels` + `GetDefaultModelForCli` captured Connect unary
-  calls over `node:https`; decomposition into Pi models with thinking levels and max mode; in-memory
-  10-minute cache keyed by credential digest; no stale fallback.
-- `auth.ts`: `createProvider({ auth: { oauth: { login, refreshToken, getApiKey } } })`. `login` opens
-  `https://cursor.com/loginDeepControl?challenge=<S256>&uuid=<v4>&mode=login&redirectTarget=cli`
-  through Pi's auth URL interaction, polls
-  `GET https://api2.cursor.sh/auth/poll?uuid=<uuid>&verifier=<verifier>` on the captured bounded
-  policy until the access/refresh pair arrives, stores `{ refresh, access, expires }` from the JWT
-  `exp`. `refreshToken` posts the stored refresh JWT to `oauth/token` with the workbench
-  refresh-token grant (measured live; durable, non-rotating) and keeps it for the next grant;
-  `shouldLogout: true` surfaces as a re-login error. `PI_CURSOR_TOKEN` short-circuits both for
-  headless use.
-- `index.ts`: register `cursor`; models resolved at `session_start` after credentials exist; failures
-  notify through `ctx.ui.notify` and continue; reload finishes runs and rebuilds the runtime;
-  shutdown closes sessions.
-- Verify: unit tests for challenge/verifier derivation, poll response parsing and bounded retry,
-  JWT expiry extraction, credential-missing registration behaviour; `mise run dev` isolated TUI
-  performs `/login cursor` end to end and lists models.
+### 5. Deterministic package gate
 
-### 4. Packaging gates
+`mise run verify` passes with:
 
-- `mise run build` emits exactly `dist/index.mjs`; `pack:verify` runs `bun pm pack`, lists the
-  tarball, fails on any file outside the whitelist, any `sourceMappingURL`, any `//` or `/* */`
-  comment longer than a license banner, any `.map`, `.d.mts`, `proto`, `test`, or `docs` path,
-  and any string containing `victor-software-house/pi-stuff` or a local filesystem path.
-- Packed smoke: extract the tarball into an empty directory and load the extension through the
-  Node CLI and the checksum-verified official standalone Bun binary with `--no-extensions -e`,
-  asserting the provider registers with a synthetic token against a loopback transport.
-- Verify: `mise run verify` includes build, pack:verify, unit, and packed smoke.
+- Biome, oxlint, actionlint, and TypeScript;
+- 85 unit tests with one explicit host-only identity test skipped;
+- a minified 85.71 kB ESM bundle plus entry declaration;
+- publint and exact tarball whitelist checks;
+- forbidden package/path/source-map scans and bundle-size limits;
+- extracted-artifact imports under Node and Bun, each with a five-second process guard;
+- loading through Pi's real extension loader, which must register `/cursor` and exactly one native
+  `cursor` provider;
+- packed `/cursor help` checks that require print text and a JSON custom-message event.
 
-### 3b. Usage pane (added 2026-09-02, operator decision)
+### 6. Live release-candidate proof
 
-- Port the private stack's measured `/cursor usage` surface, single-account: the DashboardService
-  closure generated from the pinned CLI schema (`dashboard.proto` selection), the `node:https`
-  Connect unary transport with the 2026-08-18 capture's measured body framings and fixed headers,
-  the usage data layer with renderer-quoted units (hard-limit dollars, int32-max unlimited
-  sentinel, cents fields, 0–100 percents), the Summary/Models tabbed TUI pane (`r` refresh,
-  `q`/Esc close, Tab switches), and a `/cursor` command whose `usage` verb (and bare form) opens it.
-- `readCliConfig` is not ported: the backend URL is the pinned `api2.cursor.sh` and ghost mode is
-  the workbench default `implicit-false`. Private build dependencies are bundled like
-  `pi-type-kit`; the pane imports only Pi peers at runtime.
-- Verify: unit tests for the pure formatting/key logic and the dashboard framing against a local
-  server; `mise run dev` shows the pane with live data.
+A fresh OAuth login on 2026-09-03 supplied a temporary token used only for the proof. The following
+passed:
 
-### 5. Live proof
+- all three live catalog calls and selectable-model construction;
+- live DashboardService usage shape without printing account values from the test;
+- one bounded Composer 2.5 production RunInference response with a 256-token output cap;
+- an isolated visible Pi TUI in a Herdr pane showing live Enterprise Summary and Models views;
+- Tab switching and `q` close;
+- visible partial-failure handling when one aggregate sample timed out.
 
-- Isolated dev TUI (`mise run dev`) in a visible pane: `/login cursor`, model list, Composer 2.5
-  bash-tool round trip, one row each for GPT-5.6 Sol, Claude Opus 5 Thinking, Gemini 3.7 Flash,
-  Cursor Grok 4.6 through the account that exposes them; a forced near-expiry refresh.
-- Gated `test/live/` suite records secret-free application messages for the Composer round trip and
-  asserts argument deltas, correlated tool result, and final text.
-- Verify: retained live report; no secret, machine id, or account id in any committed fixture.
+The temporary token, Ego Browser task space, and Herdr test pane were removed afterward.
 
-### 6. Release
+## Remaining publication gates
 
-- Bootstrap: manual `bun publish --access public` of `0.0.0` from a verified tree, tag `v0.0.0`,
-  configure npm trusted publishing for `release.yml`; then the first patch Changeset produces
-  `0.0.1` through the Version Packages PR and OIDC publish.
-- Flip the repository to public before `0.0.1` publishes; README states provenance, the IDE
-  identity derivation, the unverified-server-policy caveat for derived identities, the third-party
-  client risk under Cursor's terms, and the exact evidence classes.
-- Installed proof: `pi install npm:pi-cursor-inference@0.0.1` into a clean agent dir, Node and standalone Bun,
-  `/login cursor`, and the Composer round trip. Record the evidence in the release notes.
+These steps are intentionally unstarted and require an explicit operator decision:
 
-## Risks and stop conditions
+1. Authorize the first functional public release.
+2. Make the GitHub repository public and remove `private: true` from `package.json` in the same
+   release-enablement change.
+3. Add and review the npm OIDC/Changesets release workflow; configure npm trusted publishing for
+   that exact workflow.
+4. Add a patch Changeset for the first functional `0.0.1` release. Do not alter the existing blank
+   `0.0.0` package manually.
+5. Merge the generated Version Packages PR only after its current head passes CI and package gates.
+6. Let CI publish `0.0.1`; do not publish, tag, or edit changelogs from a terminal.
+7. In a clean agent directory, install the exact npm version, run `/login cursor`, confirm the
+   provider catalog and `/cursor` pane, and perform one bounded Composer response.
+8. Verify npm metadata, tag target, GitHub Release, and exact-version Node/Bun load before calling
+   the release complete.
 
-| Risk | Response |
-|:--|:--|
-| Refresh endpoint shape differs from prior art | Capture once in slice 3; do not ship an unmeasured refresh |
-| Server rejects derived identity from a non-IDE host | Only measurable on a machine without the IDE; test on a clean VM before release, document result |
-| Linux/Windows identity branches cannot be executed here | Fixture tests only; mark those platforms “derived per Cursor source, not host-verified” in README |
-| Cursor changes `RunInference` or identity headers | Artifact lock pins the source version; README states the pinned IDE version and that drift is expected |
-| Minified bundle still exposes the schema | Accepted; state plainly in README that minification is not protection |
+## Known boundaries
 
-## Deferred
-
-Multi-account, usage dashboard, Linux/Windows host verification, a public drift gate, browser login
-without `redirectTarget=cli`.
+- Darwin identity and the current paid account path are live-verified. Linux and Windows identity
+  logic is source-derived and fixture-tested, not host-verified.
+- Cursor is a closed service and can drift beyond the pinned clients. The deterministic gates prove
+  the selected contract, not future server compatibility.
+- Minification and selective packaging reduce accidental disclosure; they do not protect a public
+  wire schema from inspection.
+- The usage backend can return partial aggregate timeouts. The pane reports the missing sample and
+  renders the available data rather than fabricating a value.

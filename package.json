@@ -2,7 +2,7 @@
 	"name": "pi-cursor-inference",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Stopped private proof of concept for Cursor inference in Pi.",
+	"description": "Unofficial Cursor managed inference provider for Pi.",
 	"license": "MIT",
 	"sideEffects": false,
 	"author": {
