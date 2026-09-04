@@ -152,13 +152,7 @@ export function streamCursor(
 					),
 				},
 			});
-			const mapper = new CursorInferenceMapper(
-				stream,
-				output,
-				new Set(context.tools?.map(({ name }) => name) ?? []),
-				invocationId,
-				settings,
-			);
+			const mapper = new CursorInferenceMapper(stream, output, invocationId, settings);
 			const runtimeForToken =
 				typeof runtime.runtime === 'function'
 					? await runtime.runtime(options.apiKey)
