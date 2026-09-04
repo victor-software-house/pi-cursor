@@ -38,8 +38,11 @@ records the complete history review performed before the repository became publi
 - Native Pi OAuth through `/login cursor`, plus `PI_CURSOR_TOKEN` for headless use.
 - Dynamic model discovery from `AvailableModels`, `GetUsableModels`, and
   `GetDefaultModelForCli`.
-- Catalog-backed context windows, image/thinking capabilities, and distinct Max Mode rows only
-  when Cursor advertises a meaningful variant difference.
+- Per-model image and thinking support is advertised only when `AvailableModels` explicitly enables
+  it. Selectable families without complete catalog metadata are omitted rather than receiving
+  invented capabilities.
+- Normal and Max rows respect Cursor's separate mode flags. Their context windows follow the
+  selected default variant's `context` parameter when present, then the catalog token limit.
 - Streaming thinking text when the provider supplies it, opaque reasoning signatures, text,
   usage, generic tool-call argument deltas, and tool continuations.
 - Final response assembly always preserves routed thinking text when Cursor's final message carries
@@ -139,8 +142,9 @@ never erase non-empty streamed thinking, even when strict reconciliation is off.
 
 Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
 Catalog entries with a distinct Max Mode appear as separate `-max` models and carry Cursor's
-captured context parameter automatically. Advanced callers may override the Cursor-specific
-`cursorMaxMode` and `cursorContext` sampling parameters per request.
+captured context parameter automatically. A model that supports only Max Mode produces only its
+`-max` row. Advanced callers may override the Cursor-specific `cursorMaxMode` and `cursorContext`
+sampling parameters per request.
 
 ## Verification
 

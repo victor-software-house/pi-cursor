@@ -12,7 +12,24 @@ import {
 } from '@cursor/gen/aiserver/v1/catalog_pb';
 
 const base = create(AvailableModelsResponseSchema, {
-	models: [create(AvailableModelsResponse_AvailableModelSchema, { name: 'gpt-5.6-sol' })],
+	models: [
+		create(AvailableModelsResponse_AvailableModelSchema, {
+			name: 'gpt-5.6-sol',
+			clientDisplayName: 'GPT-5.6 Sol',
+			supportsThinking: true,
+			supportsImages: true,
+			supportsNonMaxMode: true,
+			contextTokenLimit: 272_000,
+		}),
+		create(AvailableModelsResponse_AvailableModelSchema, {
+			name: 'composer-2.5',
+			clientDisplayName: 'Composer 2.5',
+			supportsThinking: true,
+			supportsImages: false,
+			supportsNonMaxMode: true,
+			contextTokenLimit: 200_000,
+		}),
+	],
 });
 
 const usable = create(GetUsableModelsResponseSchema, {
@@ -49,7 +66,42 @@ describe('Cursor catalog', () => {
 				high: 'gpt-5.6-sol-high',
 			},
 		});
-		expect(models[1]).toMatchObject({ id: 'composer-2.5', reasoning: false });
+		expect(models[1]).toMatchObject({
+			id: 'composer-2.5',
+			reasoning: true,
+			input: ['text'],
+			contextWindow: 200_000,
+		});
+	});
+
+	test('requires explicit catalog support before advertising images or thinking', () => {
+		const conservativeBase = create(AvailableModelsResponseSchema, {
+			models: [
+				create(AvailableModelsResponse_AvailableModelSchema, {
+					name: 'default',
+					clientDisplayName: 'Auto',
+					supportsNonMaxMode: true,
+				}),
+			],
+		});
+		const conservativeUsable = create(GetUsableModelsResponseSchema, {
+			models: [create(ModelDetailsSchema, { modelId: 'default', displayName: 'Auto' })],
+		});
+		expect(
+			catalogModels(
+				conservativeBase,
+				conservativeUsable,
+				create(GetDefaultModelForCliResponseSchema, { model: conservativeUsable.models[0] }),
+				'https://api2.cursor.sh',
+			),
+		).toMatchObject([
+			{
+				id: 'default',
+				reasoning: false,
+				input: ['text'],
+				contextWindow: 200_000,
+			},
+		]);
 	});
 
 	test('uses measured Grok capabilities without adding a redundant Max row', () => {
@@ -168,24 +220,129 @@ describe('Cursor catalog', () => {
 		]);
 	});
 
-	test('retains conservative metadata for an unmatched usable family', () => {
-		const unknown = create(GetUsableModelsResponseSchema, {
-			models: [create(ModelDetailsSchema, { modelId: 'unknown-model', displayName: 'Unknown' })],
+	test('uses the selected variant context as the effective Pi context window', () => {
+		const claudeBase = create(AvailableModelsResponseSchema, {
+			models: [
+				create(AvailableModelsResponse_AvailableModelSchema, {
+					name: 'claude-sonnet-4-6',
+					clientDisplayName: 'Claude Sonnet 4.6',
+					supportsThinking: true,
+					supportsImages: true,
+					supportsMaxMode: true,
+					supportsNonMaxMode: true,
+					contextTokenLimit: 1_000_000,
+					contextTokenLimitForMaxMode: 1_000_000,
+					variants: [
+						{
+							parameterValues: [{ id: 'context', value: '200k' }],
+							displayName: 'Claude Sonnet 4.6',
+							isDefaultNonMaxConfig: true,
+							legacySlug: 'claude-4.6-sonnet-medium',
+						},
+						{
+							parameterValues: [{ id: 'context', value: '1m' }],
+							displayName: 'Claude Sonnet 4.6',
+							isMaxMode: true,
+							isDefaultMaxConfig: true,
+							legacySlug: 'claude-4.6-sonnet-medium',
+						},
+					],
+					legacySlugs: ['claude-4.6-sonnet-medium'],
+				}),
+			],
+		});
+		const claudeUsable = create(GetUsableModelsResponseSchema, {
+			models: [
+				create(ModelDetailsSchema, {
+					modelId: 'claude-4.6-sonnet-medium',
+					displayName: 'Claude Sonnet 4.6 Medium',
+				}),
+			],
+		});
+		expect(
+			catalogModels(
+				claudeBase,
+				claudeUsable,
+				create(GetDefaultModelForCliResponseSchema, { model: claudeUsable.models[0] }),
+				'https://api2.cursor.sh',
+			),
+		).toMatchObject([
+			{ id: 'claude-4.6-sonnet', contextWindow: 200_000 },
+			{ id: 'claude-4.6-sonnet-max', contextWindow: 1_000_000 },
+		]);
+	});
+
+	test('publishes only the Max row when non-Max mode is unsupported', () => {
+		const maxOnlyBase = create(AvailableModelsResponseSchema, {
+			models: [
+				create(AvailableModelsResponse_AvailableModelSchema, {
+					name: 'max-only',
+					supportsImages: false,
+					supportsThinking: false,
+					supportsMaxMode: true,
+					supportsNonMaxMode: false,
+					contextTokenLimitForMaxMode: 400_000,
+				}),
+			],
+		});
+		const maxOnlyUsable = create(GetUsableModelsResponseSchema, {
+			models: [create(ModelDetailsSchema, { modelId: 'max-only' })],
+		});
+		expect(
+			catalogModels(
+				maxOnlyBase,
+				maxOnlyUsable,
+				create(GetDefaultModelForCliResponseSchema, { model: maxOnlyUsable.models[0] }),
+				'https://api2.cursor.sh',
+			),
+		).toMatchObject([
+			{
+				id: 'max-only-max',
+				input: ['text'],
+				reasoning: false,
+				contextWindow: 400_000,
+				samplingParams: { cursorMaxMode: true },
+			},
+		]);
+	});
+
+	test('omits unmatched usable families rather than inventing capabilities', () => {
+		const mixed = create(GetUsableModelsResponseSchema, {
+			models: [
+				create(ModelDetailsSchema, {
+					modelId: 'gpt-5.6-sol-medium',
+					displayName: 'GPT-5.6 Sol Medium',
+				}),
+				create(ModelDetailsSchema, { modelId: 'unknown-model', displayName: 'Unknown' }),
+			],
 		});
 		const models = catalogModels(
 			base,
-			unknown,
-			create(GetDefaultModelForCliResponseSchema, { model: unknown.models[0] }),
+			mixed,
+			create(GetDefaultModelForCliResponseSchema, { model: mixed.models[0] }),
 			'https://api2.cursor.sh',
 		);
-		expect(models).toMatchObject([
-			{
-				id: 'unknown-model',
-				contextWindow: 200_000,
-				input: ['text', 'image'],
-			},
-		]);
-		expect(models[0]?.samplingParams).toBeUndefined();
+		expect(models.map(({ id }) => id)).toEqual(['gpt-5.6-sol']);
+	});
+
+	test('rejects an unmatched default model', () => {
+		const mixed = create(GetUsableModelsResponseSchema, {
+			models: [
+				create(ModelDetailsSchema, {
+					modelId: 'gpt-5.6-sol-medium',
+					displayName: 'GPT-5.6 Sol Medium',
+				}),
+				create(ModelDetailsSchema, { modelId: 'unknown-model', displayName: 'Unknown' }),
+			],
+		});
+		expect(() =>
+			catalogModels(
+				base,
+				mixed,
+				create(GetDefaultModelForCliResponseSchema, { model: mixed.models[1] }),
+				'https://api2.cursor.sh',
+			),
+		).toThrow("Cursor default model 'unknown-model' has no complete catalog metadata");
 	});
 
 	test('rejects an unavailable default model', () => {

@@ -126,14 +126,20 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 
 ### 3. Catalog metadata and Max Mode
 
-- Selectable `GetUsableModels` families join to `AvailableModels` rows through names, aliases,
-  legacy slugs, and variant legacy slugs.
-- Matching rows supply context windows, image support, and thinking support.
+- Selectable `GetUsableModels` families join to complete `AvailableModels` rows through names,
+  aliases, legacy slugs, and variant legacy slugs. Unmatched families are omitted instead of
+  receiving invented capabilities; an unmatched default fails catalog refresh.
+- Matching rows advertise images and thinking only when their optional catalog flags are explicitly
+  true. Normal and Max rows separately honor `supports_non_max_mode` and `supports_max_mode`.
+- A selected default variant's `context` parameter is the effective Pi context window when present;
+  the top-level normal/Max token limit is the fallback. This preserves cases where the base row
+  advertises a broad 1M ceiling but its ordinary default variant selects 200k.
 - Grok 4.6 reports 256k and receives no redundant Max row because its captured normal and Max
   metadata are equivalent.
 - GPT-5.6 Sol reports 272k normally and a distinct 1M `-max` row.
 - Catalog-selected context parameters flow into both the requested model and routing key.
-- Unmatched families retain conservative 200k fallback metadata.
+- The 64k output limit remains conservative because the selected catalog closure exposes no
+  per-model output-token limit. Pi exposes no separate per-model tool-capability field.
 
 ### 4. `/cursor` operator surface
 
