@@ -15,6 +15,7 @@ export default defineConfig({
 	plugins: ['typescript', 'import'],
 	rules: {
 		'no-console': 'error',
+		'import/no-default-export': 'error',
 		'import/extensions': ['error', 'never', { ignorePackages: true }],
 		'typescript/no-explicit-any': 'error',
 		'typescript/no-non-null-assertion': 'error',
@@ -35,6 +36,10 @@ export default defineConfig({
 		'typescript/consistent-type-assertions': 'error',
 	},
 	overrides: [
+		{
+			files: ['**/*.config.ts', 'src/index.ts', '.changeset/changelog.ts'],
+			rules: { 'import/no-default-export': 'off' },
+		},
 		{
 			files: ['scripts/**', 'mise-tasks/**'],
 			rules: { 'no-console': 'off' },

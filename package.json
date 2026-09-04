@@ -98,6 +98,7 @@
 		"@victor-software-house/pi-components": "0.2.17",
 		"@victor-software-house/pi-type-kit": "0.0.5",
 		"bun-release": "0.0.3",
+		"dedent": "1.7.2",
 		"knip": "6.34.0",
 		"liquidjs": "10.29.0",
 		"oxlint": "1.80.0",

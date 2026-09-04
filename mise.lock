@@ -92,6 +92,20 @@ url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-x64
 checksum = "sha256:c669e97f6164e1c96e0701748db98dfa77492908cbd8394c7557134a735de381"
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-darwin-aarch64.zip"
 
+[[tools.conftest]]
+version = "0.69.0"
+backend = "aqua:open-policy-agent/conftest"
+
+[tools.conftest."platforms.linux-x64"]
+checksum = "sha256:96fc2fbf11f0afde51256647127e6f00a64ce839a4d9a0a1aef2426c0e6f4b3f"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.69.0/conftest_0.69.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/499923547"
+
+[tools.conftest."platforms.macos-arm64"]
+checksum = "sha256:78302d045f0ec52e9786a06c6c621ac4516b4c5dd1e54efc8050c86c29b964d9"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.69.0/conftest_0.69.0_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/499923548"
+
 [[tools.lefthook]]
 version = "2.1.12"
 backend = "aqua:evilmartians/lefthook"

@@ -28,6 +28,15 @@ that acts on it.
 - Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks and CI.
 - Knip owns dependency, unreachable-file, and dead-export analysis through `mise run deps`; configure
   real script, mise-task, and test entry points rather than suppressing findings globally.
+- Keep Changesets Liquid templates clean, readable, and exact. Put control tags on deliberate lines,
+  avoid control-flow-only whitespace hacks and throwaway template variables, and prove rendered
+  Markdown byte-for-byte with focused tests using root-resolved paths and `dedent` fixtures.
+- Own all oxlint exceptions in `oxlint.config.ts`, never inline. Declare every known process
+  environment variable in `src/environment.d.ts`. Conftest owns release-workflow policy beyond
+  actionlint's syntax checks.
+- Decode wire data with generated protobuf schemas. Keep small fixed JSON trust boundaries behind
+  focused typed guards; move to a declarative schema when a shape becomes nested or variant-heavy,
+  but do not add a general validator to per-request or per-turn hot paths without measured need.
 - Conventional Commits; commit and push each green slice; no AI attribution anywhere.
 - The GitHub repository and npm package are public. Never publish, version, tag, or edit the
   changelog manually; author patch changesets and let the release workflow own those operations.
