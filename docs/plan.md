@@ -148,12 +148,15 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
   current/previous spend and per-model breakdowns.
 - Optional call failures remain visible as named misses. Required-call failures fail visibly.
 - RunInference token arms populate Pi's input, output, cache-read, cache-write, and total fields on
-  each assistant response. RunInference exposes no billed-cost field, so Pi's per-response cost is
-  zero.
-- Cursor's Admin API has delayed usage-event costs (`totalCents`, `chargedCents`, and Cursor Token
-  Rate), but it requires separate Team Admin API-key authentication and exposes `conversationId`
-  rather than RunInference's per-call `invocationId`. Because pi-cursor uses one conversation ID for
-  the Pi session, those events cannot be assigned exactly to individual Pi messages.
+  each assistant response. RunInference exposes no typed billed-cost field, so Pi's per-response
+  cost is zero.
+- The pinned client schema also includes DashboardService `GetFilteredUsageEvents`. Its rows carry
+  per-event token cost, Cursor Token fee, actual charged cents, timestamp, model, client type, and
+  optional conversation ID. The current pane calls only aggregate methods, and filtered-endpoint
+  account/role access has not been live-verified for this package.
+- DashboardService and official Admin API usage-event rows expose `conversationId` rather than
+  RunInference's per-call `invocationId`. Because pi-cursor uses one conversation ID for the Pi
+  session, those settled events cannot be joined to individual Pi messages by an exact identifier.
 - Cursor Agent SDK `get_usage()` cost data is outside scope because it belongs to Cursor's agent
   runtime rather than the Pi-owned inference loop.
 
@@ -249,6 +252,8 @@ claim a separate npm provenance attestation.
 
 - Darwin identity and the current paid account path are live-verified. Linux and Windows identity
   logic is source-derived and fixture-tested, not host-verified.
+- Filtered DashboardService usage events are source-verified but not live-verified for the current
+  account role. Their schema has no RunInference invocation ID.
 - Cursor is a closed service and can drift beyond the pinned clients. The deterministic gates prove
   the selected contract, not future server compatibility.
 - Minification and selective packaging reduce accidental disclosure; they do not protect a public

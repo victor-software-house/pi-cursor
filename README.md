@@ -81,26 +81,32 @@ message usage fields: input, output, cache read, cache write, and their total. C
 `extendedUsage` arm takes precedence over the basic prompt/completion counts. Pi persists those
 values with the assistant message, so session token accounting remains per response.
 
-The RunInference response does not carry money fields. Cursor models therefore use zero price rates
-in Pi, and Pi's per-turn `cost` remains zero rather than applying a rate table that can differ from
-the account's billed result.
+The typed RunInference response contract has no money field. Its `providerMetadata` arm is an untyped
+object, but the formatted client does not read a billed-cost key from it. Cursor models therefore use
+zero price rates in Pi, and Pi's per-turn `cost` remains zero rather than applying a rate table that
+can differ from the account's billed result.
 
-Fine-grained billed cost exists on other Cursor surfaces:
+Fine-grained billed-cost records exist, but not in the RunInference response:
 
+- The pinned Cursor client schema includes DashboardService `GetFilteredUsageEvents`. Its event rows
+  carry model, Max Mode, token counts, model cost (`tokenUsage.totalCents`), Cursor Token fee,
+  `chargedCents`, timestamp, client type, and optional `conversationId`. The current `/cursor usage`
+  pane calls only aggregate DashboardService methods; account/role access to the filtered endpoint
+  has not been live-verified for this package.
 - The official [Admin API usage-events endpoint](https://cursor.com/docs/account/teams/admin-api#get-usage-events-data)
-  returns event rows with model, Max Mode, token counts, model cost (`tokenUsage.totalCents`), actual
-  charge (`chargedCents`), Cursor Token Rate, timestamp, and optional `conversationId`. It requires a
-  Team Admin API key, is aggregated hourly, and does not expose the RunInference `invocationId`.
+  exposes a closely matching event shape through separate Team Admin API-key authentication. Its
+  documented data is aggregated hourly.
 - Cursor's [Agent SDK](https://cursor.com/docs/sdk/python) exposes eventual billed cost by local turn
   or cloud run through `agent.get_usage()`. That interface belongs to Cursor's agent runtime, which
   this package does not use because Pi owns the agent loop, tools, execution, and transcript.
 
-`pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so several inference calls
-in one Pi session share the only identifier returned by Admin API usage events. Timestamp/model/token
-correlation could estimate a turn's event, but it cannot prove a one-to-one mapping when calls share
-those values or when billing data has not settled. `/cursor usage` therefore reports only the
-DashboardService account/time-window and per-model aggregates it can read directly; it does not
-assign those cents to individual Pi messages.
+Neither DashboardService nor the Admin API usage-event shape exposes RunInference's per-call
+`invocationId`. `pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so several
+inference calls share that identifier. A model/timestamp/token match may identify an event in
+ordinary data, but it is not an identifier-level join and may be ambiguous or unsettled when the
+assistant response completes. `pi-cursor` therefore does not assign those cents to individual Pi
+messages. See the [formatted-source audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/protocol/turn-accounting-source-audit-2026-09-04.md)
+for the exact pinned modules and fields.
 
 ## Configuration
 

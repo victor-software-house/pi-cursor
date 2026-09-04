@@ -18,6 +18,10 @@
 			"bytes": 2495172,
 			"sha256": "11918733db7d269d12942801f831c285dc8c48c1fa2192abbb23eb1f3876082d"
 		},
+		"268.js": {
+			"bytes": 1395378,
+			"sha256": "64fe61e33c85f5c541f3b7faac601828dc5cbd5a5ac91f3d0c7641340a3a6330"
+		},
 		"675.js": {
 			"bytes": 2429621,
 			"sha256": "b487792e45cc043865b2659bbc713f7888d848e95e291aac2f4b0ce0534caa6d"
@@ -29,6 +33,9 @@
 		"protobuf_runtime": "main.js:36038",
 		"transport_router": "657.js:12702",
 		"transport_factory": "657.js:41033",
-		"managed_inference": "675.js:40675"
+		"managed_inference": "675.js:40675",
+		"dashboard_schema": "268.js:36006",
+		"usage_event_schema": "268.js:5576",
+		"dashboard_service": "657.js:75335"
 	}
 }
