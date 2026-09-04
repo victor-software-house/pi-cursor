@@ -191,7 +191,7 @@ export async function pollCursorAuth(
  * is durable and non-rotating — repeated grants with the same token each returned 200 with
  * a fresh 60-day access JWT, and the response carries no `refresh_token`.
  *
- * Deliberate deviation, measured not invented: the workbench stores the new access token
+ * Measured deviation: the workbench stores the new access token
  * as BOTH access and refresh (`storeAccessRefreshToken(c.access_token, c.access_token)`);
  * pi-cursor keeps the original refresh token, which the server keeps accepting. Granting
  * with an access token as `refresh_token` is unmeasured, so the quirk is not copied.

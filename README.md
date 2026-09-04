@@ -70,16 +70,44 @@ Enterprise plans. When the backend returns a per-model breakdown, **Tab** switch
 **Summary** and **Models**; `r` refreshes and `q`/Esc closes the pane.
 
 The pane uses captured DashboardService calls and renderer-defined units. It does not infer prices
-from model tokens or invent values for missing samples. Optional failed calls remain visible as
+from model tokens or substitute values for missing samples. Optional failed calls remain visible as
 named misses while available usage still renders. Outside TUI mode, print writes plain text, JSON
 emits a custom message event, and RPC uses a notification.
+
+## Turn usage and billed cost
+
+Each completed Cursor assistant response stores the provider's token counts in Pi's standard
+message usage fields: input, output, cache read, cache write, and their total. Cursor's
+`extendedUsage` arm takes precedence over the basic prompt/completion counts. Pi persists those
+values with the assistant message, so session token accounting remains per response.
+
+The RunInference response does not carry money fields. Cursor models therefore use zero price rates
+in Pi, and Pi's per-turn `cost` remains zero rather than applying a rate table that can differ from
+the account's billed result.
+
+Fine-grained billed cost exists on other Cursor surfaces:
+
+- The official [Admin API usage-events endpoint](https://cursor.com/docs/account/teams/admin-api#get-usage-events-data)
+  returns event rows with model, Max Mode, token counts, model cost (`tokenUsage.totalCents`), actual
+  charge (`chargedCents`), Cursor Token Rate, timestamp, and optional `conversationId`. It requires a
+  Team Admin API key, is aggregated hourly, and does not expose the RunInference `invocationId`.
+- Cursor's [Agent SDK](https://cursor.com/docs/sdk/python) exposes eventual billed cost by local turn
+  or cloud run through `agent.get_usage()`. That interface belongs to Cursor's agent runtime, which
+  this package does not use because Pi owns the agent loop, tools, execution, and transcript.
+
+`pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so several inference calls
+in one Pi session share the only identifier returned by Admin API usage events. Timestamp/model/token
+correlation could estimate a turn's event, but it cannot prove a one-to-one mapping when calls share
+those values or when billing data has not settled. `/cursor usage` therefore reports only the
+DashboardService account/time-window and per-model aggregates it can read directly; it does not
+assign those cents to individual Pi messages.
 
 ## Configuration
 
 `/cursor settings` persists two toggles in Pi's agent directory:
 
 - **Strict reconciliation** defaults to **on**. When enabled, streamed and final response copies
-  must agree structurally; tool IDs, names, and arguments are checked before local execution. When
+  must be structurally equal; tool IDs, names, and arguments are checked before local execution. When
   disabled, Cursor's final content is accepted without that cross-copy equality check. Local stream
   validity, advertised-tool validation, and final-content parsing remain mandatory.
 - **Persist diagnostics** defaults to **off**. When enabled, each assistant message carries a
@@ -126,7 +154,7 @@ not claimed.
 
 - No `AgentService/Run`, Cursor-native tools, MCP projection, or agent bridge.
 - No multi-account database, keychain/1Password reader, or installed-IDE dependency.
-- No invented Grok thinking summary: current RunInference measurements provide an opaque
+- No synthesized Grok thinking summary: current RunInference measurements provide an opaque
   continuation signature but no reasoning text for Grok 4.6.
 
 See the

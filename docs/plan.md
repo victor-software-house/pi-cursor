@@ -38,7 +38,7 @@ owned by Changesets and the main-branch release workflow.
 - Reproducing the private repository's broad capture and drift machinery.
 - Packet-level HTTP/2 claims such as DATA boundaries, HPACK state, compression bytes, or original
   header order.
-- Inventing Grok thinking text when RunInference supplies only an opaque continuation signature.
+- Synthesizing Grok thinking text when RunInference supplies only an opaque continuation signature.
 - Publication, repository visibility changes, versioning, tags, or npm replacement in this plan.
 
 ## Evidence baseline
@@ -147,6 +147,15 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 - Standard plans render measured percentages and on-demand policy. Enterprise renders cumulative
   current/previous spend and per-model breakdowns.
 - Optional call failures remain visible as named misses. Required-call failures fail visibly.
+- RunInference token arms populate Pi's input, output, cache-read, cache-write, and total fields on
+  each assistant response. RunInference exposes no billed-cost field, so Pi's per-response cost is
+  zero.
+- Cursor's Admin API has delayed usage-event costs (`totalCents`, `chargedCents`, and Cursor Token
+  Rate), but it requires separate Team Admin API-key authentication and exposes `conversationId`
+  rather than RunInference's per-call `invocationId`. Because pi-cursor uses one conversation ID for
+  the Pi session, those events cannot be assigned exactly to individual Pi messages.
+- Cursor Agent SDK `get_usage()` cost data is outside scope because it belongs to Cursor's agent
+  runtime rather than the Pi-owned inference loop.
 
 ### 5. Deterministic package gate
 

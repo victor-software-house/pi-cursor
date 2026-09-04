@@ -11,7 +11,7 @@ import { createSettingsPanel, refreshDescription } from '@victor-software-house/
 
 const descriptions = {
 	strictReconciliation: {
-		on: 'Fail before tool execution when streamed and final response copies disagree.',
+		on: 'Fail before tool execution when streamed and final response copies do not match.',
 		off: 'Accept final content without streamed/final equality checks; stream validity still applies.',
 	},
 	diagnostics: {

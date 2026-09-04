@@ -52,7 +52,7 @@ describe('Cursor catalog', () => {
 		expect(models[1]).toMatchObject({ id: 'composer-2.5', reasoning: false });
 	});
 
-	test('uses measured Grok capabilities without inventing a redundant Max row', () => {
+	test('uses measured Grok capabilities without adding a redundant Max row', () => {
 		const grokBase = create(AvailableModelsResponseSchema, {
 			models: [
 				create(AvailableModelsResponse_AvailableModelSchema, {

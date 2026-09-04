@@ -198,12 +198,12 @@ function compareTools(streamed: readonly ToolCall[], final: readonly ToolCall[])
 	const streamedById = indexedTools(streamed, 'streamed');
 	const finalById = indexedTools(final, 'final');
 	if (streamedById.size !== finalById.size) {
-		throw new Error('Cursor final response tool set disagrees with completed streamed tools');
+		throw new Error('Cursor final response tool set does not match completed streamed tools');
 	}
 	for (const [id, streamedTool] of streamedById) {
 		const finalTool = finalById.get(id);
 		if (finalTool === undefined) {
-			throw new Error('Cursor final response tool set disagrees with completed streamed tools');
+			throw new Error('Cursor final response tool set does not match completed streamed tools');
 		}
 		if (streamedTool.name !== finalTool.name) {
 			throw new Error(`Cursor final response changed the name of tool '${id}'`);

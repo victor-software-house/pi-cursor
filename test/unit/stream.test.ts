@@ -191,7 +191,7 @@ describe('managed inference Pi stream', () => {
 		);
 		expect(result).toMatchObject({
 			stopReason: 'error',
-			errorMessage: 'Cursor final response tool set disagrees with completed streamed tools',
+			errorMessage: 'Cursor final response tool set does not match completed streamed tools',
 		});
 	});
 

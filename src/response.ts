@@ -208,7 +208,7 @@ export class CursorInferenceMapper {
 			})
 			.with({ case: 'invocationId' }, ({ value }) => {
 				if (value.invocationId !== this.#invocationId) {
-					throw new Error('Cursor nested invocation identity disagrees with its outer envelope');
+					throw new Error('Cursor nested invocation identity does not match its outer envelope');
 				}
 			})
 			.with({ case: 'providerMetadata' }, ({ value }) => {
@@ -384,7 +384,7 @@ export class CursorInferenceMapper {
 		const streamed = objectArguments(open.json, true);
 		if (open.json !== '' && (streamed === undefined || !isDeepStrictEqual(streamed, complete))) {
 			throw new Error(
-				`Cursor tool call '${part.toolCallId}' argument stream disagrees with completion`,
+				`Cursor tool call '${part.toolCallId}' argument stream does not match completion`,
 			);
 		}
 		open.block.arguments = complete;
