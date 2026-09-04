@@ -143,8 +143,8 @@ never erase non-empty streamed thinking, even when strict reconciliation is off.
 Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
 Catalog entries with a distinct Max Mode appear as separate `-max` models and carry Cursor's
 captured context parameter automatically. A model that supports only Max Mode produces only its
-`-max` row. Advanced callers may override the Cursor-specific `cursorMaxMode` and `cursorContext`
-sampling parameters per request.
+`-max` row, while the request still uses the underlying selectable Cursor model ID. Advanced callers
+may override the Cursor-specific `cursorMaxMode` and `cursorContext` sampling parameters per request.
 
 ## Verification
 

@@ -10,6 +10,7 @@ import {
 	AvailableModelsResponse_AvailableModelSchema,
 	AvailableModelsResponseSchema,
 } from '@cursor/gen/aiserver/v1/catalog_pb';
+import { inferenceRequestedModel } from '@cursor/request';
 
 const base = create(AvailableModelsResponseSchema, {
 	models: [
@@ -288,14 +289,13 @@ describe('Cursor catalog', () => {
 		const maxOnlyUsable = create(GetUsableModelsResponseSchema, {
 			models: [create(ModelDetailsSchema, { modelId: 'max-only' })],
 		});
-		expect(
-			catalogModels(
-				maxOnlyBase,
-				maxOnlyUsable,
-				create(GetDefaultModelForCliResponseSchema, { model: maxOnlyUsable.models[0] }),
-				'https://api2.cursor.sh',
-			),
-		).toMatchObject([
+		const models = catalogModels(
+			maxOnlyBase,
+			maxOnlyUsable,
+			create(GetDefaultModelForCliResponseSchema, { model: maxOnlyUsable.models[0] }),
+			'https://api2.cursor.sh',
+		);
+		expect(models).toMatchObject([
 			{
 				id: 'max-only-max',
 				input: ['text'],
@@ -304,6 +304,12 @@ describe('Cursor catalog', () => {
 				samplingParams: { cursorMaxMode: true },
 			},
 		]);
+		const model = models[0];
+		if (model === undefined) throw new Error('expected Max-only model');
+		expect(inferenceRequestedModel(model, undefined, true)).toMatchObject({
+			modelId: 'max-only',
+			maxMode: true,
+		});
 	});
 
 	test('omits unmatched usable families rather than inventing capabilities', () => {

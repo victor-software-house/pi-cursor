@@ -134,6 +134,9 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 - A selected default variant's `context` parameter is the effective Pi context window when present;
   the top-level normal/Max token limit is the fallback. This preserves cases where the base row
   advertises a broad 1M ceiling but its ordinary default variant selects 200k.
+- Synthetic Pi family and `-max` IDs retain a mapping to a real `GetUsableModels` selection even
+  when the catalog does not advertise thinking; Pi-facing row names are never sent as Cursor wire
+  model IDs unless they are themselves selectable.
 - Grok 4.6 reports 256k and receives no redundant Max row because its captured normal and Max
   metadata are equivalent.
 - GPT-5.6 Sol reports 272k normally and a distinct 1M `-max` row.

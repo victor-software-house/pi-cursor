@@ -305,12 +305,14 @@ function providerModel(
 				)
 			: base.clientDisplayName;
 	const context = variantContext(base, maxMode);
+	const publishedId = `${family.id}${maxMode ? '-max' : ''}`;
+	const requiresWireModelMap = family.members.some(({ model }) => model.modelId !== publishedId);
 	const samplingParams = {
 		...(maxMode ? { cursorMaxMode: true } : {}),
 		...(context === undefined ? {} : { cursorContext: context }),
 	};
 	return {
-		id: `${family.id}${maxMode ? '-max' : ''}`,
+		id: publishedId,
 		name: `${capturedName}${maxMode ? ' Max' : ''}`,
 		provider: 'cursor',
 		api: 'cursor-inference',
@@ -321,7 +323,9 @@ function providerModel(
 		contextWindow: contextWindow(base, maxMode),
 		maxTokens: defaultMaxTokens,
 		...(Object.keys(samplingParams).length === 0 ? {} : { samplingParams }),
-		...(reasoning && Object.keys(thinkingLevelMap).length > 0 ? { thinkingLevelMap } : {}),
+		...(Object.keys(thinkingLevelMap).length > 0 && (reasoning || requiresWireModelMap)
+			? { thinkingLevelMap }
+			: {}),
 	};
 }
 
