@@ -93,6 +93,14 @@ Fine-grained billed-cost records exist, but not in the RunInference response:
   `chargedCents`, timestamp, client type, and optional `conversationId`. The current `/cursor usage`
   pane calls only aggregate DashboardService methods; account/role access to the filtered endpoint
   has not been live-verified for this package.
+- The same DashboardService schema includes `GetClientUsageData`, whose request takes
+  `conversationId` and an int32 `timestampBeforeRequest`, and whose response contains named
+  `costInCents` items. Exact-symbol searches find no caller or field consumer in the full packaged
+  Cursor 3.18.9 workbench or agent-host JavaScript, so the source does not establish the timestamp
+  unit, item meanings, settlement timing, or concurrent-request behavior.
+- `AiService.CheckUsageBasedPrice` returns cents and a price ID for proposed feature details. The
+  formatted workbench uses it only to render a usage-based-pricing preflight before enablement; it
+  has no conversation or invocation identifier and is not measured post-response usage.
 - The official [Admin API usage-events endpoint](https://cursor.com/docs/account/teams/admin-api#get-usage-events-data)
   exposes a closely matching event shape through separate Team Admin API-key authentication. Its
   documented data is aggregated hourly.
@@ -100,13 +108,15 @@ Fine-grained billed-cost records exist, but not in the RunInference response:
   or cloud run through `agent.get_usage()`. That interface belongs to Cursor's agent runtime, which
   this package does not use because Pi owns the agent loop, tools, execution, and transcript.
 
-Neither DashboardService nor the Admin API usage-event shape exposes RunInference's per-call
-`invocationId`. `pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so several
-inference calls share that identifier. A model/timestamp/token match may identify an event in
-ordinary data, but it is not an identifier-level join and may be ambiguous or unsettled when the
-assistant response completes. `pi-cursor` therefore does not assign those cents to individual Pi
-messages. See the [formatted-source audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/protocol/turn-accounting-source-audit-2026-09-04.md)
-for the exact pinned modules and fields.
+Neither DashboardService monetary shape nor the Admin API usage-event shape exposes RunInference's
+per-call `invocationId`. `pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so
+several inference calls share that identifier. A model/timestamp/token match may identify an event in
+ordinary data, and `GetClientUsageData` offers a conversation/time boundary, but neither contract
+provides an identifier-level join to one RunInference call. Their attribution and settlement
+semantics are not established under concurrent requests. `pi-cursor` therefore does not assign
+those cents to individual Pi messages. See the
+[formatted-source audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/protocol/turn-accounting-source-audit-2026-09-04.md)
+for the exact pinned modules, full-bundle searches, and fields.
 
 ## Configuration
 

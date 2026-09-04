@@ -44,7 +44,7 @@ describe('selected Cursor 3.18.9 protocol closure', () => {
 
 	test('pins the exact Cursor artifact and source modules', async () => {
 		expect(await sha256(lockPath)).toBe(
-			'4452b6bdab2b708b41bc9a4558ac6b69cc12fece47c586e5f37614152363897e',
+			'882fef8d11e112381f648e3efa1d98a7eb69c3cabc5710be26947b0476a0f6ed',
 		);
 		const lock: unknown = await Bun.file(lockPath).json();
 		expect(lock).toMatchObject({
@@ -54,6 +54,12 @@ describe('selected Cursor 3.18.9 protocol closure', () => {
 			artifact: {
 				bytes: 270_656_436,
 				sha256: 'dc43417a2c44f7221fb764f329d9b7edf819253ee01c8bc9abb562ae020270e4',
+			},
+			workbench: {
+				'workbench.desktop.main.js': {
+					bytes: 41_973_763,
+					sha256: '519a4800d3a3f6f7ab228681a202ef26cfe07ef991dd460aa82ca8145ecbb4eb',
+				},
 			},
 			agent_host: {
 				'268.js': {
@@ -68,6 +74,7 @@ describe('selected Cursor 3.18.9 protocol closure', () => {
 				managed_inference: '675.js:40675',
 				dashboard_schema: '268.js:36006',
 				usage_event_schema: '268.js:5576',
+				usage_price_schema: '657.js:58072',
 				dashboard_service: '657.js:75335',
 			},
 		});

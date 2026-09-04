@@ -154,9 +154,18 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
   per-event token cost, Cursor Token fee, actual charged cents, timestamp, model, client type, and
   optional conversation ID. The current pane calls only aggregate methods, and filtered-endpoint
   account/role access has not been live-verified for this package.
+- DashboardService also defines `GetClientUsageData(conversationId, timestampBeforeRequest)`, which
+  returns named costs in cents. Full packaged-source searches find no client caller or response-field
+  consumer, so its timestamp unit, item meanings, settlement timing, and concurrency behavior remain
+  unestablished.
+- `AiService.CheckUsageBasedPrice` returns a quote for supplied usage-event details and is called
+  only by the workbench's usage-based-pricing preflight display. It has no call identifier and is not
+  post-response measured usage.
 - DashboardService and official Admin API usage-event rows expose `conversationId` rather than
-  RunInference's per-call `invocationId`. Because pi-cursor uses one conversation ID for the Pi
-  session, those settled events cannot be joined to individual Pi messages by an exact identifier.
+  RunInference's per-call `invocationId`. `GetClientUsageData` adds a time boundary but no
+  invocation identifier. Because pi-cursor uses one conversation ID for the Pi session, the pinned
+  contracts do not establish an exact identifier-level join from monetary values to individual Pi
+  messages.
 - Cursor Agent SDK `get_usage()` cost data is outside scope because it belongs to Cursor's agent
   runtime rather than the Pi-owned inference loop.
 
@@ -252,8 +261,10 @@ claim a separate npm provenance attestation.
 
 - Darwin identity and the current paid account path are live-verified. Linux and Windows identity
   logic is source-derived and fixture-tested, not host-verified.
-- Filtered DashboardService usage events are source-verified but not live-verified for the current
-  account role. Their schema has no RunInference invocation ID.
+- Filtered DashboardService usage events and `GetClientUsageData` are source-verified but not
+  live-verified for the current account role. Neither contract has a RunInference invocation ID;
+  the packaged client does not call either method, and `GetClientUsageData` semantics cannot be
+  recovered from generated fields alone.
 - Cursor is a closed service and can drift beyond the pinned clients. The deterministic gates prove
   the selected contract, not future server compatibility.
 - Minification and selective packaging reduce accidental disclosure; they do not protect a public

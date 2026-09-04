@@ -9,6 +9,12 @@
 		"sha256": "dc43417a2c44f7221fb764f329d9b7edf819253ee01c8bc9abb562ae020270e4"
 	},
 	"product_json_sha256": "216b99583e56b26ce505d5d38b2944bbe47ec98c7802e54aec76adcce3ba9db2",
+	"workbench": {
+		"workbench.desktop.main.js": {
+			"bytes": 41973763,
+			"sha256": "519a4800d3a3f6f7ab228681a202ef26cfe07ef991dd460aa82ca8145ecbb4eb"
+		}
+	},
 	"agent_host": {
 		"main.js": {
 			"bytes": 1820308,
@@ -36,6 +42,7 @@
 		"managed_inference": "675.js:40675",
 		"dashboard_schema": "268.js:36006",
 		"usage_event_schema": "268.js:5576",
+		"usage_price_schema": "657.js:58072",
 		"dashboard_service": "657.js:75335"
 	}
 }
