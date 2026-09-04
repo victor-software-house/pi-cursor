@@ -1,5 +1,13 @@
 # pi-cursor-inference
 
+## 0.0.3
+
+### Patch Changes
+
+- Advertise image, thinking, context-window, and Max Mode support from each model's matched Cursor catalog metadata, retain the real Cursor wire selection behind synthetic family and Max IDs, and omit unmatched selections instead of assigning permissive fallback capabilities ([#7](https://github.com/victor-software-house/pi-cursor/pull/7)).
+- Attribute the package's MIT license to Victor Araújo personally ([#5](https://github.com/victor-software-house/pi-cursor/pull/5)).
+- Document reported per-response token accounting, including absent and basic-usage limitations, and the exhaustive formatted-source boundary between RunInference usage, DashboardService event, conversation/time-bounded and aggregate costs, quoted usage-based prices, and external billing surfaces; use direct equality language in reconciliation messages ([#7](https://github.com/victor-software-house/pi-cursor/pull/7)).
+
 ## 0.0.2
 
 ### Patch Changes

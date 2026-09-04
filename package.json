@@ -1,6 +1,6 @@
 {
 	"name": "pi-cursor-inference",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "Unofficial Cursor managed inference provider for Pi with native OAuth, dynamic models, and Pi-owned tools.",
 	"license": "MIT",
 	"sideEffects": false,
