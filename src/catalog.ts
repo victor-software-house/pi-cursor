@@ -329,10 +329,6 @@ function providerModel(
 	};
 }
 
-export function clearCursorCatalogCache(): void {
-	cache = undefined;
-}
-
 export function catalogModels(
 	base: AvailableModelsResponse,
 	usable: GetUsableModelsResponse,

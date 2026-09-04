@@ -1,0 +1,19 @@
+{
+	"$schema": "./node_modules/knip/schema-jsonc.json",
+	"entry": ["scripts/*.ts", "mise-tasks/**/*.ts", "test/**/*.test.ts"],
+	"project": [
+		"src/**/*.ts",
+		"scripts/**/*.ts",
+		"mise-tasks/**/*.ts",
+		"test/**/*.ts",
+		"*.config.ts"
+	],
+	"ignoreExportsUsedInFile": true,
+	"ignoreBinaries": ["mise"],
+	"ignoreDependencies": [
+		"@biomejs/biome",
+		"@bufbuild/protoc-gen-es",
+		"@changesets/cli",
+		"@commitlint/cli"
+	]
+}
