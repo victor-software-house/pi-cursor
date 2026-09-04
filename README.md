@@ -38,8 +38,11 @@ records the complete history review performed before the repository became publi
 - Native Pi OAuth through `/login cursor`, plus `PI_CURSOR_TOKEN` for headless use.
 - Dynamic model discovery from `AvailableModels`, `GetUsableModels`, and
   `GetDefaultModelForCli`.
-- Catalog-backed context windows, image/thinking capabilities, and distinct Max Mode rows only
-  when Cursor advertises a meaningful variant difference.
+- Per-model image and thinking support is advertised only when `AvailableModels` explicitly enables
+  it. Selectable families without complete catalog metadata are omitted rather than receiving
+  invented capabilities.
+- Normal and Max rows respect Cursor's separate mode flags. Their context windows follow the
+  selected default variant's `context` parameter when present, then the catalog token limit.
 - Streaming thinking text when the provider supplies it, opaque reasoning signatures, text,
   usage, generic tool-call argument deltas, and tool continuations.
 - Final response assembly always preserves routed thinking text when Cursor's final message carries
@@ -70,16 +73,61 @@ Enterprise plans. When the backend returns a per-model breakdown, **Tab** switch
 **Summary** and **Models**; `r` refreshes and `q`/Esc closes the pane.
 
 The pane uses captured DashboardService calls and renderer-defined units. It does not infer prices
-from model tokens or invent values for missing samples. Optional failed calls remain visible as
+from model tokens or substitute values for missing samples. Optional failed calls remain visible as
 named misses while available usage still renders. Outside TUI mode, print writes plain text, JSON
 emits a custom message event, and RPC uses a notification.
+
+## Turn usage and billed cost
+
+When RunInference supplies a usage arm, the completed Cursor assistant response stores those token
+counts in Pi's standard message usage fields. `extendedUsage` supplies input, output, cache-read,
+and cache-write counts and takes precedence. Basic `usage` supplies only prompt and completion
+counts, so the cache fields remain zero. A successful response with no usage arm retains the
+initialized zero values; those zeros are not provider-reported token measurements.
+
+The typed RunInference response contract has no money field. Its `providerMetadata` arm is an untyped
+object, but the formatted client does not read a billed-cost key from it. Cursor models therefore use
+zero price rates in Pi, and Pi's per-turn `cost` remains zero rather than applying a rate table that
+can differ from the account's billed result.
+
+Fine-grained billed-cost records exist, but not in the RunInference response:
+
+- The pinned Cursor client schema includes DashboardService `GetFilteredUsageEvents`. Its event rows
+  carry model, Max Mode, token counts, model cost (`tokenUsage.totalCents`), Cursor Token fee,
+  `chargedCents`, timestamp, client type, and optional `conversationId`. The current `/cursor usage`
+  pane calls only aggregate DashboardService methods; account/role access to the filtered endpoint
+  has not been live-verified for this package.
+- The same DashboardService schema includes `GetClientUsageData`, whose request takes
+  `conversationId` and an int32 `timestampBeforeRequest`, and whose response contains named
+  `costInCents` items. Exact-symbol searches find no caller or field consumer in the full packaged
+  Cursor 3.18.9 workbench or agent-host JavaScript, so the source does not establish the timestamp
+  unit, item meanings, settlement timing, or concurrent-request behavior.
+- `AiService.CheckUsageBasedPrice` returns cents and a price ID for proposed feature details. The
+  formatted workbench uses it only to render a usage-based-pricing preflight before enablement; it
+  has no conversation or invocation identifier and is not measured post-response usage.
+- The official [Admin API usage-events endpoint](https://cursor.com/docs/account/teams/admin-api#get-usage-events-data)
+  exposes a closely matching event shape through separate Team Admin API-key authentication. Its
+  documented data is aggregated hourly.
+- Cursor's [Agent SDK](https://cursor.com/docs/sdk/python) exposes eventual billed cost by local turn
+  or cloud run through `agent.get_usage()`. That interface belongs to Cursor's agent runtime, which
+  this package does not use because Pi owns the agent loop, tools, execution, and transcript.
+
+Neither DashboardService monetary shape nor the Admin API usage-event shape exposes RunInference's
+per-call `invocationId`. `pi-cursor` sends the stable Pi session ID as Cursor's `conversationId`, so
+several inference calls share that identifier. A model/timestamp/token match may identify an event in
+ordinary data, and `GetClientUsageData` offers a conversation/time boundary, but neither contract
+provides an identifier-level join to one RunInference call. Their attribution and settlement
+semantics are not established under concurrent requests. `pi-cursor` therefore does not assign
+those cents to individual Pi messages. See the
+[formatted-source audit](https://github.com/victor-software-house/pi-cursor/blob/main/docs/protocol/turn-accounting-source-audit-2026-09-04.md)
+for the exact pinned modules, full-bundle searches, and fields.
 
 ## Configuration
 
 `/cursor settings` persists two toggles in Pi's agent directory:
 
 - **Strict reconciliation** defaults to **on**. When enabled, streamed and final response copies
-  must agree structurally; tool IDs, names, and arguments are checked before local execution. When
+  must be structurally equal; tool IDs, names, and arguments are checked before local execution. When
   disabled, Cursor's final content is accepted without that cross-copy equality check. Local stream
   validity, advertised-tool validation, and final-content parsing remain mandatory.
 - **Persist diagnostics** defaults to **off**. When enabled, each assistant message carries a
@@ -94,8 +142,9 @@ never erase non-empty streamed thinking, even when strict reconciliation is off.
 
 Cursor Max Mode defaults to **off**, matching the IDE's ordinary composer model configuration.
 Catalog entries with a distinct Max Mode appear as separate `-max` models and carry Cursor's
-captured context parameter automatically. Advanced callers may override the Cursor-specific
-`cursorMaxMode` and `cursorContext` sampling parameters per request.
+captured context parameter automatically. A model that supports only Max Mode produces only its
+`-max` row, while the request still uses the underlying selectable Cursor model ID. Advanced callers
+may override the Cursor-specific `cursorMaxMode` and `cursorContext` sampling parameters per request.
 
 ## Verification
 
@@ -126,7 +175,7 @@ not claimed.
 
 - No `AgentService/Run`, Cursor-native tools, MCP projection, or agent bridge.
 - No multi-account database, keychain/1Password reader, or installed-IDE dependency.
-- No invented Grok thinking summary: current RunInference measurements provide an opaque
+- No synthesized Grok thinking summary: current RunInference measurements provide an opaque
   continuation signature but no reasoning text for Grok 4.6.
 
 See the

@@ -244,6 +244,7 @@ function tooltipText(tooltip: AvailableModel['tooltipData']): string {
 
 function hasDistinctMaxMode(model: AvailableModel): boolean {
 	if (model.supportsMaxMode !== true) return false;
+	if (model.supportsNonMaxMode === false) return true;
 	if (
 		model.contextTokenLimitForMaxMode !== undefined &&
 		model.contextTokenLimitForMaxMode !== model.contextTokenLimit
@@ -264,17 +265,28 @@ function variantContext(model: AvailableModel, maxMode: boolean): string | undef
 	return variant?.parameterValues.find((parameter) => parameter.id === 'context')?.value;
 }
 
-function contextWindow(model: AvailableModel | undefined, maxMode: boolean): number {
+function contextParameterTokens(value: string | undefined): number | undefined {
+	const matched = /^(\d+(?:\.\d+)?)([km])$/u.exec(value ?? '');
+	if (matched === null) return undefined;
+	const amount = Number(matched[1]);
+	const multiplier = matched[2] === 'm' ? 1_000_000 : 1_000;
+	const tokens = amount * multiplier;
+	return Number.isSafeInteger(tokens) && tokens > 0 ? tokens : undefined;
+}
+
+function contextWindow(model: AvailableModel, maxMode: boolean): number {
+	const selected = contextParameterTokens(variantContext(model, maxMode));
+	if (selected !== undefined) return selected;
 	const captured = maxMode
-		? (model?.contextTokenLimitForMaxMode ?? model?.contextTokenLimit)
-		: model?.contextTokenLimit;
+		? (model.contextTokenLimitForMaxMode ?? model.contextTokenLimit)
+		: model.contextTokenLimit;
 	return captured !== undefined && captured > 0 ? captured : defaultContextWindow;
 }
 
 function providerModel(
 	family: ModelFamily,
 	baseUrl: string,
-	base: AvailableModel | undefined,
+	base: AvailableModel,
 	maxMode: boolean,
 ): Model<'cursor-inference'> {
 	const representative =
@@ -284,35 +296,36 @@ function providerModel(
 	if (representative === undefined) throw new Error(`Cursor model family '${family.id}' is empty`);
 	const thinkingLevelMap: ThinkingLevelMap = {};
 	for (const member of family.members) thinkingLevelMap[member.level] = member.model.modelId;
-	const inferredReasoning = Object.entries(thinkingLevelMap).some(
-		([level, modelId]) => level !== 'off' && typeof modelId === 'string',
-	);
-	const reasoning = base?.supportsThinking ?? inferredReasoning;
+	const reasoning = base.supportsThinking === true;
 	const capturedName =
-		base?.clientDisplayName === undefined || base.clientDisplayName === ''
+		base.clientDisplayName === undefined || base.clientDisplayName === ''
 			? displayName(representative.model).replace(
 					/ (?:None|Minimal|Low|Medium|High|Extra High|Max)(?= Fast$|$)/u,
 					'',
 				)
 			: base.clientDisplayName;
-	const context = base === undefined ? undefined : variantContext(base, maxMode);
+	const context = variantContext(base, maxMode);
+	const publishedId = `${family.id}${maxMode ? '-max' : ''}`;
+	const requiresWireModelMap = family.members.some(({ model }) => model.modelId !== publishedId);
 	const samplingParams = {
 		...(maxMode ? { cursorMaxMode: true } : {}),
 		...(context === undefined ? {} : { cursorContext: context }),
 	};
 	return {
-		id: `${family.id}${maxMode ? '-max' : ''}`,
+		id: publishedId,
 		name: `${capturedName}${maxMode ? ' Max' : ''}`,
 		provider: 'cursor',
 		api: 'cursor-inference',
 		baseUrl,
 		reasoning,
-		input: base?.supportsImages === false ? ['text'] : ['text', 'image'],
+		input: base.supportsImages === true ? ['text', 'image'] : ['text'],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: contextWindow(base, maxMode),
 		maxTokens: defaultMaxTokens,
 		...(Object.keys(samplingParams).length === 0 ? {} : { samplingParams }),
-		...(reasoning && Object.keys(thinkingLevelMap).length > 0 ? { thinkingLevelMap } : {}),
+		...(Object.keys(thinkingLevelMap).length > 0 && (reasoning || requiresWireModelMap)
+			? { thinkingLevelMap }
+			: {}),
 	};
 }
 
@@ -329,19 +342,26 @@ export function catalogModels(
 	if (base.models.length === 0) throw new Error('Cursor AvailableModels returned no models');
 	const models = modelFamilies(usable.models).flatMap((family) => {
 		const baseModel = baseModelFor(family, base.models);
+		if (baseModel === undefined) return [];
 		return [
-			providerModel(family, origin, baseModel, false),
-			...(baseModel !== undefined && hasDistinctMaxMode(baseModel)
-				? [providerModel(family, origin, baseModel, true)]
-				: []),
+			...(baseModel.supportsNonMaxMode === false
+				? []
+				: [providerModel(family, origin, baseModel, false)]),
+			...(hasDistinctMaxMode(baseModel) ? [providerModel(family, origin, baseModel, true)] : []),
 		];
 	});
-	if (models.length === 0) throw new Error('Cursor GetUsableModels returned no models');
-	const defaultId = defaultModel.model?.modelId;
-	if (defaultId !== undefined && defaultId !== '') {
+	if (models.length === 0)
+		throw new Error('Cursor catalog returned no fully described usable models');
+	const defaultSelection = defaultModel.model;
+	if (defaultSelection !== undefined && defaultSelection.modelId !== '') {
+		const defaultId = defaultSelection.modelId;
 		const selections = new Set(usable.models.map(({ modelId }) => modelId));
 		if (!selections.has(defaultId)) {
 			throw new Error(`Cursor default model '${defaultId}' is not usable`);
+		}
+		const defaultFamily = familyFor(defaultSelection).id;
+		if (!models.some(({ id }) => id === defaultFamily || id === `${defaultFamily}-max`)) {
+			throw new Error(`Cursor default model '${defaultId}' has no complete catalog metadata`);
 		}
 	}
 	return models;

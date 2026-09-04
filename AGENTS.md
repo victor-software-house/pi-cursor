@@ -19,7 +19,7 @@ that acts on it.
   modules/package names/source paths are absent from `dist/index.mjs`. Pi peers are the only
   external runtime imports.
 - Machine identity is derived from the host with Cursor's algorithm (see decisions). Never read an
-  installed IDE, never invent ids silently; the UUID fallback is persisted and reported.
+  installed IDE, never substitute unverified ids; the UUID fallback is persisted and reported.
 - Credentials go through Pi's OAuth provider contract. No custom stores.
 - Keep evidence classes separate: pinned IDE source, application-message captures, Pi 0.84.4 tag.
   No packet-level claims. No credential, machine id, account id, or billing value in fixtures.

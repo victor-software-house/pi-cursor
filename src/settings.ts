@@ -4,7 +4,7 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent';
 import { isRecord } from '@victor-software-house/pi-type-kit';
 
 export interface CursorSettings {
-	/** Fail the turn when streamed and final response copies disagree structurally. */
+	/** Fail the turn when streamed and final response copies do not match structurally. */
 	readonly strictReconciliation: boolean;
 	/** Persist response side-channel details and a payload-free reconciliation census. */
 	readonly diagnostics: boolean;
@@ -83,7 +83,7 @@ export function summarizeCursorSettings(settings = getCursorSettings()): string 
 	return [
 		`strict reconciliation: ${settings.strictReconciliation ? 'on' : 'off'} — ${
 			settings.strictReconciliation
-				? 'fail when streamed and final response copies disagree'
+				? 'fail when streamed and final response copies do not match'
 				: 'accept the final response without cross-copy equality checks'
 		}`,
 		`persist diagnostics: ${settings.diagnostics ? 'on' : 'off'} — ${

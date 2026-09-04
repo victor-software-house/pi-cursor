@@ -38,7 +38,7 @@ owned by Changesets and the main-branch release workflow.
 - Reproducing the private repository's broad capture and drift machinery.
 - Packet-level HTTP/2 claims such as DATA boundaries, HPACK state, compression bytes, or original
   header order.
-- Inventing Grok thinking text when RunInference supplies only an opaque continuation signature.
+- Synthesizing Grok thinking text when RunInference supplies only an opaque continuation signature.
 - Publication, repository visibility changes, versioning, tags, or npm replacement in this plan.
 
 ## Evidence baseline
@@ -126,14 +126,23 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 
 ### 3. Catalog metadata and Max Mode
 
-- Selectable `GetUsableModels` families join to `AvailableModels` rows through names, aliases,
-  legacy slugs, and variant legacy slugs.
-- Matching rows supply context windows, image support, and thinking support.
+- Selectable `GetUsableModels` families join to complete `AvailableModels` rows through names,
+  aliases, legacy slugs, and variant legacy slugs. Unmatched families are omitted instead of
+  receiving invented capabilities; an unmatched default fails catalog refresh.
+- Matching rows advertise images and thinking only when their optional catalog flags are explicitly
+  true. Normal and Max rows separately honor `supports_non_max_mode` and `supports_max_mode`.
+- A selected default variant's `context` parameter is the effective Pi context window when present;
+  the top-level normal/Max token limit is the fallback. This preserves cases where the base row
+  advertises a broad 1M ceiling but its ordinary default variant selects 200k.
+- Synthetic Pi family and `-max` IDs retain a mapping to a real `GetUsableModels` selection even
+  when the catalog does not advertise thinking; Pi-facing row names are never sent as Cursor wire
+  model IDs unless they are themselves selectable.
 - Grok 4.6 reports 256k and receives no redundant Max row because its captured normal and Max
   metadata are equivalent.
 - GPT-5.6 Sol reports 272k normally and a distinct 1M `-max` row.
 - Catalog-selected context parameters flow into both the requested model and routing key.
-- Unmatched families retain conservative 200k fallback metadata.
+- The 64k output limit remains conservative because the selected catalog closure exposes no
+  per-model output-token limit. Pi exposes no separate per-model tool-capability field.
 
 ### 4. `/cursor` operator surface
 
@@ -147,6 +156,28 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 - Standard plans render measured percentages and on-demand policy. Enterprise renders cumulative
   current/previous spend and per-model breakdowns.
 - Optional call failures remain visible as named misses. Required-call failures fail visibly.
+- When present, RunInference token arms populate Pi's per-response usage. `extendedUsage` supplies
+  input, output, cache-read, and cache-write counts; basic `usage` supplies prompt and completion
+  only. A response with neither arm retains unmeasured initialized zeros. RunInference exposes no
+  typed billed-cost field, so Pi's per-response cost is zero.
+- The pinned client schema also includes DashboardService `GetFilteredUsageEvents`. Its rows carry
+  per-event token cost, Cursor Token fee, actual charged cents, timestamp, model, client type, and
+  optional conversation ID. The current pane calls only aggregate methods, and filtered-endpoint
+  account/role access has not been live-verified for this package.
+- DashboardService also defines `GetClientUsageData(conversationId, timestampBeforeRequest)`, which
+  returns named costs in cents. Full packaged-source searches find no client caller or response-field
+  consumer, so its timestamp unit, item meanings, settlement timing, and concurrency behavior remain
+  unestablished.
+- `AiService.CheckUsageBasedPrice` returns a quote for supplied usage-event details and is called
+  only by the workbench's usage-based-pricing preflight display. It has no call identifier and is not
+  post-response measured usage.
+- DashboardService and official Admin API usage-event rows expose `conversationId` rather than
+  RunInference's per-call `invocationId`. `GetClientUsageData` adds a time boundary but no
+  invocation identifier. Because pi-cursor uses one conversation ID for the Pi session, the pinned
+  contracts do not establish an exact identifier-level join from monetary values to individual Pi
+  messages.
+- Cursor Agent SDK `get_usage()` cost data is outside scope because it belongs to Cursor's agent
+  runtime rather than the Pi-owned inference loop.
 
 ### 5. Deterministic package gate
 
@@ -240,6 +271,10 @@ claim a separate npm provenance attestation.
 
 - Darwin identity and the current paid account path are live-verified. Linux and Windows identity
   logic is source-derived and fixture-tested, not host-verified.
+- Filtered DashboardService usage events and `GetClientUsageData` are source-verified but not
+  live-verified for the current account role. Neither contract has a RunInference invocation ID;
+  the packaged client does not call either method, and `GetClientUsageData` semantics cannot be
+  recovered from generated fields alone.
 - Cursor is a closed service and can drift beyond the pinned clients. The deterministic gates prove
   the selected contract, not future server compatibility.
 - Minification and selective packaging reduce accidental disclosure; they do not protect a public

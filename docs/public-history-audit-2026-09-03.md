@@ -53,7 +53,7 @@ The broad blob scanner deliberately over-matched. Every candidate was classified
 | Authorization and credential literals | Synthetic test values such as repeated characters, `HEADER.PAYLOAD.SIGNATURE`, `refresh-token`, and `headless-token`. Gitleaks independently found none to be a secret. |
 | UUID forms | Fixed RFC example/test UUIDs and the public Cursor OAuth client identifier. No account or host UUID was recorded. |
 | Private-network URLs | Loopback HTTP/2 test servers only. No LAN, tailnet, or internal service URL occurs. |
-| Usage IDs and amounts | Deliberately invented round fixtures (`userId: 777`, `teamId: 4242`, and round percentages/cents) used to test units and arithmetic. No live account value entered Git. |
+| Usage IDs and amounts | Synthetic round fixtures (`userId: 777`, `teamId: 4242`, and round percentages/cents) used to test units and arithmetic. No live account value entered Git. |
 | Geographic timezone | `America/Sao_Paulo` is a deterministic checksum/transport test input, not captured account or host state. |
 | Artifact hashes and source commits | Public Cursor artifact integrity evidence, not machine IDs or credentials. |
 

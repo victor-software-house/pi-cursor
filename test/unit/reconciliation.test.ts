@@ -25,10 +25,10 @@ describe('Cursor final content reconciliation', () => {
 		expect(exact.summary.tools).toEqual({ streamed: 1, final: 1, status: 'exact' });
 
 		expect(() => reconcileFinalContent([tool('call-1')], [])).toThrow(
-			'Cursor final response tool set disagrees with completed streamed tools',
+			'Cursor final response tool set does not match completed streamed tools',
 		);
 		expect(() => reconcileFinalContent([tool('call-1')], [tool('call-2')])).toThrow(
-			'Cursor final response tool set disagrees with completed streamed tools',
+			'Cursor final response tool set does not match completed streamed tools',
 		);
 		expect(() => reconcileFinalContent([tool('call-1')], [tool('call-1', 'other')])).toThrow(
 			"Cursor final response changed the name of tool 'call-1'",
