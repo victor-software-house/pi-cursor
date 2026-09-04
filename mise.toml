@@ -5,6 +5,7 @@ node = "26.8.1"
 bun = "1.4.0"
 lefthook = "2.1.12"
 actionlint = "1.7.12"
+conftest = "0.69.0"
 buf = "1.72.0"
 
 [settings]
@@ -37,8 +38,8 @@ depends = ["build"]
 run = "knip --no-progress"
 
 [tasks.lint]
-description = "Lint: biome + oxlint in parallel"
-depends = ["gen", "lint:biome", "lint:oxlint", "lint:actions"]
+description = "Lint: biome + oxlint + actionlint + release policy in parallel"
+depends = ["gen", "lint:biome", "lint:oxlint", "lint:actions", "lint:conftest"]
 
 [tasks."lint:biome"]
 hide = true
@@ -53,6 +54,13 @@ run = "bun --bun oxlint"
 [tasks."lint:actions"]
 hide = true
 run = "actionlint"
+
+[tasks."lint:conftest"]
+hide = true
+run = [
+  "conftest verify",
+  "conftest test --all-namespaces .github/workflows/*.yml",
+]
 
 [tasks."lint:fix"]
 description = "Autofix lint: biome --write then oxlint --fix"

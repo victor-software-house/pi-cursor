@@ -183,8 +183,9 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 
 `mise run verify` passes with:
 
-- Biome, type-aware oxlint, actionlint, Knip dependency/dead-export analysis, and TypeScript;
-- 109 unit tests with one explicit host-only identity test skipped;
+- Biome, type-aware oxlint, actionlint, Conftest release policy, Knip dependency/dead-export
+  analysis, and TypeScript;
+- 113 unit tests with one explicit host-only identity test skipped;
 - a minified 99.06 kB ESM bundle plus entry declaration;
 - publint and exact tarball whitelist checks;
 - forbidden package/path/source-map scans and bundle-size limits;

@@ -147,6 +147,4 @@ export async function getDependencyReleaseLine(
 
 const changelogFunctions: ChangelogFunctions = { getReleaseLine, getDependencyReleaseLine };
 
-// Changesets resolves the adapter through its default export.
-// oxlint-disable-next-line import/no-default-export
 export default changelogFunctions;
