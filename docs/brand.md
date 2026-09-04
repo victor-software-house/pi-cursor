@@ -17,6 +17,8 @@ isometric geometry, and it must stay that way.
 | [`banner-dark.svg`](banner-dark.svg) | Same, graphite field. |
 | `gallery.svg` | pi.dev package card, 3840×2160 on a 1200×675 design grid. Repository-only: it is **not** in the package `files` whitelist, so do not link to it from a packaged file — see [Gallery](#gallery). |
 | [`gallery.png`](gallery.png) | The shipped card image, rendered 1:1 from `gallery.svg`. |
+| `social-preview.svg` | GitHub repository social preview, 3840×1920 on a 1280×640 design grid. Repository-only: it is not in the package `files` whitelist. |
+| `social-preview.png` | The uploaded 2:1 image, rendered from `social-preview.svg`. Repository-only. |
 
 Pair the two fields with `<picture>` and `prefers-color-scheme`. **Never recolour a single file at
 the call site**, and never scale the mark to supply padding — see [Construction](#construction).
@@ -283,6 +285,63 @@ Anything that regenerates the two gallery files must still pass all of it:
    open and the magenta slab must still be visible.
 6. Render with `FONTCONFIG_FILE` pointing at a config whose only `<dir>` is empty, and confirm the
    output is pixel-identical to a normal render.
+
+## Social preview
+
+GitHub's social-preview surface is 2:1. None of the existing assets fit it: the banner is 5:1,
+the gallery is 16:9, and the marks are square. `social-preview.svg` is therefore a dedicated
+composition, not a stretched or cropped asset.
+
+The approved layout keeps the banner's reading order: an inverted mark tile on the left, then the
+wordmark, subtitle, and usage chip in one text column. It uses the existing palette, Quarter Turn
+geometry, outlined Geist Mono lettering, and exact strings. The field is opaque and full bleed so
+hosting platforms can apply their own corner treatment.
+
+The source uses a 1280×640 design grid and renders at 3840×1920. The 2:1 proportion is the layout
+contract; the 3× raster avoids using GitHub's 1280×640 recommendation as a resolution ceiling.
+GitHub documents no maximum pixel dimensions, only a file-size limit below 1 MB.
+
+### Geometry
+
+| Element | Design-grid geometry |
+|:--|:--|
+| Field | `0,0 1280×640`, opaque `#ecedef` |
+| Mark tile | `80,192 256×256`, radius 48 |
+| Mark | Quarter Turn at `u = 8`, offset `80,192` |
+| Text origin | `x 420`; 84-unit gap after the tile |
+| Wordmark | baseline `273.58`, Black 112px, −5.6 tracking |
+| Subtitle | baseline `333.88`, Medium 26px |
+| Chip | `420,384.74 271.5×63`, Regular 24px label |
+| Margins | 80 left/right; 192 top/bottom |
+
+The tile and text band are both centered on `y 320`. The gaps from wordmark to subtitle and subtitle
+to chip are 24 and 48 design units, preserving the gallery's 1:2 relationship.
+
+### Regeneration
+
+Use the outline script in [Regenerating the outlines](#regenerating-the-outlines) with:
+
+```python
+RUNS = [
+    ("wordmark", "pi-cursor", "Black", 112, 420, 273.58, -5.6),
+    ("tagline", "/cursor in Pi · unofficial routed Cursor inference", "Medium", 26, 420, 333.88, 0),
+    ("chip", "/cursor usage", "Regular", 24, 474, 425.24, 0),
+]
+```
+
+Bake the mark at `80 + 8x, 192 + 8y`. Keep coordinates absolute; do not add a wrapper transform.
+Render the PNG at 3840×1920.
+
+### Verification
+
+1. Validate the SVG and require intrinsic `3840×1920`, `viewBox="0 0 1280 640"`, and an
+   `aria-label`.
+2. Reject embedded text, fonts, images, scripts, metadata, transforms, comments, file paths, or
+   external URLs. The expected structure is one SVG, four rectangles, and five paths.
+3. Require an opaque 3840×1920 PNG below 1 MB and pixel equality with an `rsvg-convert` render.
+4. Inspect 1280×640 and smaller 2:1 downscales from the PNG, plus a centered 1.91:1 crop. The mark's
+   gaps and magenta slab must remain visible.
+5. Confirm an empty-fontconfig render is pixel-identical.
 
 ## Verification
 

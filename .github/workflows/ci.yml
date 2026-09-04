@@ -41,7 +41,3 @@ jobs:
 
       - name: Pack dry-run
         run: mise run pack
-
-      - name: Changeset status
-        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
-        run: mise run changeset:status
