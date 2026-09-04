@@ -26,6 +26,8 @@ that acts on it.
 - Recoverable failures notify through `ctx.ui.notify` and continue; `console.*` is not an operator
   channel.
 - Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks and CI.
+- Knip owns dependency, unreachable-file, and dead-export analysis through `mise run deps`; configure
+  real script, mise-task, and test entry points rather than suppressing findings globally.
 - Conventional Commits; commit and push each green slice; no AI attribution anywhere.
 - The GitHub repository and npm package are public. Never publish, version, tag, or edit the
   changelog manually; author patch changesets and let the release workflow own those operations.

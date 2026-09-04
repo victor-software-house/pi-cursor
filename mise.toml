@@ -27,9 +27,14 @@ postinstall = "lefthook install"
 # ── Gates ──
 
 [tasks.verify]
-description = "Full CI-safe verification gate: lint + typecheck + unit tests + build + pack:verify"
-depends = ["lint", "typecheck", "test:unit", "pack:verify", "publint"]
+description = "Full CI-safe verification gate: lint + dependency analysis + typecheck + unit tests + build + pack:verify"
+depends = ["lint", "deps", "typecheck", "test:unit", "pack:verify", "publint"]
 run = "echo 'verify passed'"
+
+[tasks.deps]
+description = "Dependency and dead-export analysis"
+depends = ["build"]
+run = "knip --no-progress"
 
 [tasks.lint]
 description = "Lint: biome + oxlint in parallel"
