@@ -147,9 +147,10 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 - Standard plans render measured percentages and on-demand policy. Enterprise renders cumulative
   current/previous spend and per-model breakdowns.
 - Optional call failures remain visible as named misses. Required-call failures fail visibly.
-- RunInference token arms populate Pi's input, output, cache-read, cache-write, and total fields on
-  each assistant response. RunInference exposes no typed billed-cost field, so Pi's per-response
-  cost is zero.
+- When present, RunInference token arms populate Pi's per-response usage. `extendedUsage` supplies
+  input, output, cache-read, and cache-write counts; basic `usage` supplies prompt and completion
+  only. A response with neither arm retains unmeasured initialized zeros. RunInference exposes no
+  typed billed-cost field, so Pi's per-response cost is zero.
 - The pinned client schema also includes DashboardService `GetFilteredUsageEvents`. Its rows carry
   per-event token cost, Cursor Token fee, actual charged cents, timestamp, model, client type, and
   optional conversation ID. The current pane calls only aggregate methods, and filtered-endpoint

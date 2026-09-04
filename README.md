@@ -76,10 +76,11 @@ emits a custom message event, and RPC uses a notification.
 
 ## Turn usage and billed cost
 
-Each completed Cursor assistant response stores the provider's token counts in Pi's standard
-message usage fields: input, output, cache read, cache write, and their total. Cursor's
-`extendedUsage` arm takes precedence over the basic prompt/completion counts. Pi persists those
-values with the assistant message, so session token accounting remains per response.
+When RunInference supplies a usage arm, the completed Cursor assistant response stores those token
+counts in Pi's standard message usage fields. `extendedUsage` supplies input, output, cache-read,
+and cache-write counts and takes precedence. Basic `usage` supplies only prompt and completion
+counts, so the cache fields remain zero. A successful response with no usage arm retains the
+initialized zero values; those zeros are not provider-reported token measurements.
 
 The typed RunInference response contract has no money field. Its `providerMetadata` arm is an untyped
 object, but the formatted client does not read a billed-cost key from it. Cursor models therefore use

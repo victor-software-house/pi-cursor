@@ -454,6 +454,13 @@ describe('managed inference Pi stream', () => {
 		);
 		expect(result.stopReason).toBe('stop');
 		expect(result.content).toEqual([]);
+		expect(result.usage).toMatchObject({
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+		});
 		expect(events.map(({ type }) => type)).toEqual(['start', 'done']);
 	});
 

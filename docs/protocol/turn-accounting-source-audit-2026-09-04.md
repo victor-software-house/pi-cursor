@@ -158,8 +158,11 @@ package deliberately does not use.
 
 ## Provider consequence
 
-`pi-cursor` can report exact RunInference token counts immediately on each Pi assistant message. It
-cannot report exact settled billed cost there from the currently selected response contract.
+When RunInference supplies `extendedUsage`, `pi-cursor` can store exact input, output, cache-read,
+and cache-write counts on that Pi assistant message. Basic `usage` supplies exact prompt and
+completion counts but no cache breakdown. If neither arm arrives, the message retains initialized
+zeros that mean no usage was reported, not measured zero usage. The selected response contract still
+does not provide exact settled billed cost.
 
 A later reconciliation feature could investigate `GetClientUsageData` and query filtered usage
 events. Filtered rows can be matched on session conversation ID, model, timestamp, and token tuple;
