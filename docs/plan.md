@@ -106,6 +106,9 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
   retries, EOF, and shutdown.
 - Stream mapping preserves thinking text, opaque signatures, final response messages, usage,
   provider metadata, image descriptions, and diagnostics.
+- Structurally valid model tool calls always reach Pi. The provider advertises active tools and
+  validates wire/reconciliation integrity; Pi owns lookup, unavailable-tool results, execution, and
+  automatic continuation.
 - Final response assembly keeps final text/tools authoritative while always retaining streamed
   thinking when final reasoning contains only redacted or signature metadata.
 - Strict reconciliation defaults on and requires completed streamed tools to match final tools by
@@ -185,8 +188,8 @@ package; the emitted extension targets Node 24 and imports only Pi peers at runt
 
 - Biome, type-aware oxlint, actionlint, Conftest release policy, Knip dependency/dead-export
   analysis, and TypeScript;
-- 113 unit tests with one explicit host-only identity test skipped;
-- a minified 99.06 kB ESM bundle plus entry declaration;
+- 115 unit tests with one explicit host-only identity test skipped;
+- a minified 98.80 kB ESM bundle plus entry declaration;
 - publint and exact tarball whitelist checks;
 - forbidden package/path/source-map scans and bundle-size limits;
 - extracted-artifact imports under Node and Bun, each with a five-second process guard;

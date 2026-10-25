@@ -25,6 +25,9 @@ that acts on it.
   No packet-level claims. No credential, machine id, account id, or billing value in fixtures.
 - Recoverable failures notify through `ctx.ui.notify` and continue; `console.*` is not an operator
   channel.
+- Advertise exactly Pi's active tools in `InferenceStreamRequest.tools`, but do not authorize model
+  output in the provider mapper. Preserve every structurally valid tool call; Pi owns lookup,
+  unavailable-tool error results, execution, and automatic continuation.
 - Tasks live in `mise.toml`; `mise run verify` is the single gate for hooks and CI.
 - Knip owns dependency, unreachable-file, and dead-export analysis through `mise run deps`; configure
   real script, mise-task, and test entry points rather than suppressing findings globally.

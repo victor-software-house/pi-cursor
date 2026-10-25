@@ -544,30 +544,67 @@ describe('managed inference Pi stream', () => {
 		expect(result.errorMessage).toContain('invalid JSON arguments');
 	});
 
-	test('fails an unadvertised tool call', async () => {
-		const stream = streamCursor(
-			MODEL,
+	test('preserves an unadvertised tool call for Pi to reject and continue', async () => {
+		const { events, result } = await collect(
 			{ messages: [{ role: 'user', content: 'bad', timestamp: 1 }] },
-			{
-				runtime: runtimeWith([
-					response('ignored', {
-						response: {
-							case: 'toolCallPart',
-							value: create(InferenceToolCallStreamPartSchema, {
-								toolCallId: 'unknown',
-								toolName: 'unknown_tool',
-							}),
-						},
-					}),
-				]),
-				createInvocationId: () => 'unknown',
-			},
-			{ apiKey: 'token', sessionId: 'pi-session' },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'toolCallPart',
+						value: create(InferenceToolCallStreamPartSchema, {
+							toolCallId: 'unknown',
+							toolName: 'Grep',
+							args: '{}',
+							isComplete: true,
+						}),
+					},
+				}),
+			]),
 		);
-		for await (const event of stream) void event;
-		const result = await stream.result();
-		expect(result.stopReason).toBe('error');
-		expect(result.errorMessage).toContain("unadvertised tool 'unknown_tool'");
+
+		expect(result.stopReason).toBe('toolUse');
+		expect(result.content).toContainEqual({
+			type: 'toolCall',
+			id: 'unknown',
+			name: 'Grep',
+			arguments: {},
+		});
+		expect(events.map(({ type }) => type)).toContain('toolcall_end');
+	});
+
+	test('preserves a final-only unadvertised tool call for Pi to reject and continue', async () => {
+		const { result } = await collect(
+			{ messages: [{ role: 'user', content: 'bad', timestamp: 1 }] },
+			runtimeWith([
+				response('ignored', {
+					response: {
+						case: 'responseInfo',
+						value: create(InferenceResponseInfoSchema, {
+							messages: [
+								create(InferenceResponseMessageSchema, {
+									role: InferenceMessageRole.ASSISTANT,
+									toolCalls: [
+										{
+											toolCallId: 'unknown-final',
+											toolName: 'Grep',
+											rawToolCallArgs: '{}',
+										},
+									],
+								}),
+							],
+						}),
+					},
+				}),
+			]),
+		);
+
+		expect(result.stopReason).toBe('toolUse');
+		expect(result.content).toContainEqual({
+			type: 'toolCall',
+			id: 'unknown-final',
+			name: 'Grep',
+			arguments: {},
+		});
 	});
 
 	test('does not persist assistant diagnostics by default', async () => {
