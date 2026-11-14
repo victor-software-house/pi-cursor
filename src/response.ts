@@ -123,7 +123,6 @@ function errorMessage(
 export class CursorInferenceMapper {
 	readonly #stream: AssistantMessageEventStream;
 	readonly #output: AssistantMessage;
-	readonly #advertisedTools: ReadonlySet<string>;
 	readonly #invocationId: string;
 	readonly #settings: CursorSettings;
 	#text: OpenBlock<TextContent> | undefined;
@@ -140,13 +139,11 @@ export class CursorInferenceMapper {
 	constructor(
 		stream: AssistantMessageEventStream,
 		output: AssistantMessage,
-		advertisedTools: ReadonlySet<string>,
 		invocationId: string,
 		settings: CursorSettings,
 	) {
 		this.#stream = stream;
 		this.#output = output;
-		this.#advertisedTools = advertisedTools;
 		this.#invocationId = invocationId;
 		this.#settings = settings;
 	}
@@ -249,9 +246,6 @@ export class CursorInferenceMapper {
 				if (tool.toolCallId === '' || tool.toolName === '') {
 					throw new Error('Cursor final response contains an unnamed tool call');
 				}
-				if (!this.#advertisedTools.has(tool.toolName)) {
-					throw new Error(`Cursor final response called unadvertised tool '${tool.toolName}'`);
-				}
 				content.push({
 					type: 'toolCall',
 					id: tool.toolCallId,
@@ -332,9 +326,6 @@ export class CursorInferenceMapper {
 		let open = this.#tools.get(part.toolCallId);
 		if (open === undefined) {
 			if (part.toolName === '') throw new Error('Cursor tool call starts without a name');
-			if (!this.#advertisedTools.has(part.toolName)) {
-				throw new Error(`Cursor called unadvertised tool '${part.toolName}'`);
-			}
 			this.#endText();
 			this.#endThinking();
 			const block: ToolCall = {
